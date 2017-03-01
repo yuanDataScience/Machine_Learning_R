@@ -1,0 +1,711 @@
+---
+title: "Introduction To R"
+author: "Yuan Huang"
+date: "December 21, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is the extracted content of "Introduction to R". The PDF file is saved as "Rcourse.pdf" 
+
+### str can show the object structure
+```{r str}
+s<-list(id="example",sequence="ACCTAGAT",alphabet=c("A","C","G","T"))
+class(s)<-"GenericSeq"
+str(s)
+```
+
+### for while and repeat
+for(var in sequence) expr
+while (condition) expr
+repeat expr
+
+use print() and cat() to print the object inside the loop
+use break and next to jump out of the loop, or to the next iteration
+
+### sort() and order()
+sort() is used to sort a vector. order() returns the index of the ordered vector, and can be used to reorder matrix by one of its columns.
+```{r sort and order}
+x=c(19,25,31,15,12,43,82,22)
+sort(x)
+
+mat=matrix(c(12,3,7,9,10,11),ncol=2)
+mat
+order(mat[,1])
+mat[order(mat[,1]),]
+```
+
+
+
+### both ls() and objects() list the objects in the current enviornment
+```{r ls}
+ls()
+objects()
+```
+
+###library() shows all the library installed on the system
+```{r library}
+library()
+```
+
+### Search path and objects
+using search() to show the search path and objects(pos=num) to show all the objects in the designated directory in the search path
+```{r search and objects}
+search()
+objects(pos=3)
+```
+
+### attach
+using attach to add a database to the search path. To make objects from the previous session of R available, pass attach() the location of the .RData file. You can also directly access the dataframe or list elements by attaching the dataframe and list name, then using the element name to access it.
+```{r attach}
+df=data.frame(matrix(1:100,nrow=20))
+colnames(df)=c("first","second","third","fourth","fifth")
+attach(df)
+mean(first)
+```
+
+### nchar 
+nchar returns the nubmer of characters for character data and the printed representation of numeric data types. length() returns the number of elements. For matrix, it returns the total number of the elements in the matrix, while for data frame it returns the number of columns. dim() is used for arrays(dataframe and matrix). For non array objects,it returns null
+```{r nchar}
+nchar("abcdefg")
+length("abcdefg")
+length(matrix(1:100,nrow=20))
+```
+
+###objects
+For objects, pos defines which working database to search, and pat defines the pattern. Setting the all.names=TRUE will display obj names begin with a period. apropos() accept a regular expression, and returns all the object anywhere in your search path wich match the expression
+
+###get
+get provides an alternative way to search objects. Suppose an object named x in a database "rproject/.Rdata", which is the 2nd in the search path, we can use either 
+attach("rproject/.Rdata")
+search()
+or
+get("x",2)
+
+### c() and list()
+c() combines objects in the most general way. A matrix combines with a vector results in a vector. list() function preserves the identity of each of its elements. When c() function is applied to lists, it will return a list. To break down the list into its individual components, use the recursive=TRUE argument of c()
+```{r c()}
+c(matrix(1:4, ncol=2),1:3)
+list(matrix(1:4,ncol=2),1:3)
+c(list(matrix(1:4,ncol=2),1:3),list(1:5))
+unlist(c(list(matrix(1:4,ncol=2),1:3),list(1:5)))
+c(list(matrix(1:4,ncol=2),1:3),list(1:5),recursive=TRUE)
+```
+
+### subscripting by []
+```{r subscripting}
+x=1
+xv=c(1:10)
+xv
+xv[1:5]
+xv[-3]
+xv[-1:-3]
+xv[c(-1,-3)]
+xv[]=1
+xv
+```
+
+### dimnames(), rownames() and colnames() and drop argument
+```{r dim_row_col_names}
+x<-matrix(1:15,nrow=5)
+dimnames(x)<-list(NULL,c("one","two","three"))
+x[3,2]
+x[,1]
+x[3,]
+x[3:5,c(1,3)]
+x[-c(1,3,5),]
+x[x[,1]>2,]
+x[,c("one","three")]
+
+x[,3] # only a vector is available
+x[,3,drop=FALSE] # you get the matrix with the column name
+```
+
+### the use of [[ in list
+since the [ ] operation keeps the mode of their parent. For lists, R will often have problems working directly with such objects
+```{r [[}
+mylist<-list(a=1:10,b=10:20,c=30:40)
+mean(mylist[1])
+mean(mylist[[1]])
+mean(mylist$a)
+mean(mylist[["a"]])
+```
+
+### subscript in dataframe
+```{r dataframe subsript}
+df=data.frame(matrix(1:100,nrow=20))
+colnames(df)=c("first","second","third","fourth","fifth")
+
+df[["first"]]
+df[,"first"]
+df$first
+df["first"] # a data frame with one column
+df[1,"first"]
+df[1,]$first
+df[1,]["first"]
+```
+
+### using matrix elements as index
+For matrix a, its rows are interpret as row and column numbers for indexing
+```{r matrix index}
+a=matrix(c(1,1,1,2,2,3),ncol=2,byrow=TRUE)
+a
+x=matrix(0,nrow=4,ncol=3)
+x[a]=c(10,20,30)
+```
+since a has three rows, each row refers to an index combination.
+
+### functions for vectors
+```{r vector}
+vc <-c(1:10)
+vc
+unique(vc)
+duplicated(c(vc,1:5))
+rev(vc)
+sort(vc)
+append(vc,c(1:5))
+sum(vc)
+min(vc)
+max(vc)
+```
+
+### missing value
+```{r missing value}
+values=c(12,NA,19,15,12,17,14,NA,19)
+values[!is.na(values)]
+vv=matrix(values,ncol=3,byrow=TRUE)
+vv[!is.na(vv[,2]),,drop=FALSE]
+```
+
+###soruce() and scan()
+source can read the r source code and execute the code. scan() can read the content of file to R object.
+
+###cat(), sink() and capture.output() NEED EXAMPLES
+
+###recycle of vectors
+```{r recycle}
+x=matrix(1:3,nrow=2,ncol=6)
+x
+```
+
+### %in% and in used in for loop NEED TO BE TESTED
+
+### identical() test if two objects are exactly the same. all.equal() tests with a tolerance
+
+### which
+```{r which}
+vt<-c(TRUE,FALSE, TRUE, FALSE, TRUE, TRUE)
+which(vt)
+which(vt, arr.ind=FALSE)
+```
+
+###cut function can convert the vectors to the designated categorical variables with labels or ranges
+```{r cut}
+x=c(17,19,22,43,14,8,12,19,20,51,8,12,27,31,44)
+cut(x,3)
+cut(x,3,labels=c("low","medium","high"))
+
+#set the breaking points
+cut(x,breaks=quantile(x,c(0,.25,.50,.75,1)),labels=c("Q1","Q2","Q3","Q4"),include.lowest = TRUE)
+```
+
+### the rep function
+```{r rep}
+rep(1:3,3)
+rep(1:3,c(5,2,1))
+```
+
+### table() function
+table() gives the frequency table of data
+```{r table function}
+x=c(7,12,19,7,19,21,12,14,17,12,19,21)
+t1<-table(x)
+sum(table(x)*as.numeric(names(table(x))))
+
+x1<-c(1,2,3,2,1,3,2,3,1)
+x2<-c(2,1,2,3,1,3,2,2,3)
+x3<-c(1,2,3,3,2,1,2,1,2)
+table(x1,x2)
+ftable(table(x1,x2,x3))
+table(table(x1,x2,x3))  # among the 27 permutations, how many appeared in the data
+```
+
+### Date values
+```{r date}
+d1<-as.Date("20041202",format="%Y%m%d")
+d2<-as.Date("12/5/03", format="%m/%d/%y")
+d3<-as.Date("7-8-2001",format="%d-%m-%Y")
+
+d1-d2
+d1-d2 > 360
+mean(c(d1,d2,d3))
+d1>d2
+```
+### chron
+chron obj accepts two arguments, one for date, and the other for time. When in m/d/y and h:m:s format, the formats= argument is not needed
+
+```{r chron}
+library(chron)
+d1=chron('12/25/2004','0:0:0')
+
+d2=chron(10,origin=c(12,31,2004))  #origin accepts three arguments for m,d,Y, and add the 1st argument(10) days
+d3=chron('7-6-2005','6:00:00',format=c(dates='m-d-y',times='h:m:s'))
+d3-d1
+weekdays(d3)
+```
+
+
+### file operations
+```{r files}
+file.info("generic_Seq.R")
+file.access("generic_Seq.R")
+list.files()
+#file.choose()  #interactive user inteface for choosing files
+
+#file operations
+file.create("new_test_file.txt")
+file.create("file1")
+file.copy("file1","file2")
+file.rename("new_test_file.txt","rnew_file.txt")
+#file.symlink()  need to find out
+file.exists("rnew_file.txt")
+file.append("file1","rnew_file.txt")
+dir.create("new_dir")
+file.remove("file2")
+file.show("file1")
+```
+###system operations
+```{r system ops}
+system.time(124*234*345)  #returns the time for evaluating the expr
+proc.time()  #returns the user, system and total time for the current R process and its children
+Sys.info()
+Sys.time() # returns the current time
+```
+
+### Need to figure out what is <<-
+
+### matrix operations
+```{r matrix}
+m1<-matrix(1:12,nrow=3)
+m2<-matrix(101:112,nrow=4)
+m1%*%m2
+t(m1)
+rbind(m1,c(1,2,3,4))
+#solve(m2,c(90,100,110,120))
+#solve(t(m2)%*%m2)
+diag(m2)
+diag(3)
+row(m2)
+col(m2)
+```
+
+### Generating sequences
+```{r seq}
+seq(1,10,by=2)
+seq(1,10,length=3)
+cv<-c(1:6)
+seq(along=cv)
+```
+
+### sampling
+sample command can set up replace, size, and prob for each poplulation sample
+```{r sampling}
+sample(10)
+sample(c("a","b","c","d","e"),size=10,replace=TRUE)
+sample(c("a","b","c"),size=10,prob=c(.5,.25,.25),replace=TRUE)
+```
+
+### functional Programming
+apply() - operate on selected dimensions of arrays
+lapply(), sapply() - operate on each element of a vector or list
+tapply() - operate on elements based on a grouping variable
+mapply() - multivariate extension of sapply
+```{r functional programming}
+mt1=matrix(1:100,nrow=20,dimnames=list(NULL,c("first","second","third","fourth","fifth")))
+apply(mt1,1,mean)  #row mean
+apply(mt1,2, mean) #column mean
+```
+
+#### tapply
+tapply and aggregate both can output the function results for dataframe using group by, but tapply outputs tables/matrix, while aggregate outputs dataframes. In addition, the grouping column for aggregate must be a list.
+```{r tapply}
+interest.rate<-sample(rnorm(10),size=10,replace=TRUE)
+state<-sample(c("AZ","TX","MA","WA","NV"),size=10, replace=TRUE)
+name<-c("Bank of America","Wells Fargo","Nation Bank","Credit Union", "Citi","1st Bank","Mountain Valley", 
+        "US Bank","Chase","West Bank")
+banks<-data.frame(name,state,interest.rate)
+tapply(banks$interest.rate,banks$state,max, na.rm=TRUE)
+with(banks, tapply(interest.rate,state,max,na.rm=TRUE))
+with(banks,aggregate(interest.rate,list(state),max,na.rm=TRUE)) #remeber to include state column in a list
+
+b1<-banks[,c("state","interest.rate")]
+
+testdata = data.frame(one=c(1,1,1,2,2,2),two=c(1,2,3,1,2,3), three=rnorm(6))
+testdata
+
+agg.results<-aggregate(testdata$three, list(testdata$one,testdata$two), mean)
+tap.results<-tapply(testdata$three,list(testdata$one,testdata$two),mean)
+class(agg.results)
+class(tap.results)
+```
+
+### aggregate more
+when the first argument of aggregate is a matrix or multicolumn dataframe, the statistics will be calculated for each column
+```{r agg more}
+testdata = cbind(sample(1:5,size=100,replace=TRUE),matrix(rnorm(500),nrow=100,ncol=5))
+dimnames(testdata)=list(NULL, c("grp","A","B","C","D","E"))
+aggregate(testdata[,-1],list(grp=testdata[,1]),min)
+```
+
+### split
+```{r split}
+data("Orange")
+trees= split(Orange,Orange$Tree) # a list of dataframe, each has the same tree, and group by tree
+sapply(trees,function(x)coef(lm(circumference~age,data=x)))
+by(Orange,Orange$Tree,function(x) coef(lm(circumference~age,data=x)))
+```
+
+### if else
+if (condition) expr
+else other_expr
+
+and ifelse
+```{r ifelse}
+z=c(7,10,-3,4,12,-5)
+ifelse(z>0,z,0)
+```
+
+### paste
+paste() can be used to convert its arguments to strings. When vectorized arguments are used, the collapse argument can concatenate the resulting vector to one single string. In addition, paste can convert numeric values to characters that can be used as the index for list/vectors.
+```{r paste}
+paste("x","equals 1","and y equals", "5",sep="")  #no vectorization arguments
+paste("x",1:5, sep="") #vectorized arguments, obtain a vector
+paste("x",1:5,sep="*", collapse="|") # conver the vector to a single string
+
+
+x=c("10"=110,"7"=107,"12"=112)
+is.vector(x)
+x[paste(3+7)]
+```
+
+### substring
+substring is to get the substrings from a string using the start and end indices by exact indexing. It can also replace the substring by reassigning substrings without changing the string length.
+```{r substring}
+animals=c("dog","cat","chicken","goat","sheep")
+substring(animals,2,4)
+substring(animals,2)
+
+#replace the substring
+pet="Rover"
+substring(pet,2,3)="abcd" #ov were replaced by ab. cd was not used. substring will not change the string length
+```
+
+###strsplit
+strsplit always returns a list. When a single string is input, it will return an one element list. Therefore, unlist() is usually used to convert the list to vector for vector operations
+```{r strsplit}
+strs=c("the razor toothed piranhas","of the genera Serrasalmus")
+strsplit(strs," ") #use " " as the separator to return a list with 2 elements
+strsplit(strs, c(" ","")) #use " " to split the first and "" for the second string
+
+#if there is only one string, an one element list is returned
+str1="the razor toothed piranhas"
+strsplit(str1," ")
+unlist(strsplit(str1," ")) # a vector is returned
+```
+
+#grep and regexpr
+grep gives the index of the string element in a string vector that contains the pattern. To find the specific position of the pattern in each string, use regexpr. The vector returned by regexpr is the index vector of the pattern in strings.
+```{r grep and regexpr}
+states=c("Alabama","Alaska","California","michigan")
+grep("a[lm]",states)
+regexpr("a[lm]",states)
+class(regexpr("a[lm]",states))
+a<-regexpr("a[lm]",states)
+```
+
+###sub and gsub
+sub and gsub replace the first argument (pattern as regular expression) in a string by the second argument. sub() only replace the first occurence, while the gsub() replace all of the occurences.
+```{r sub gsub}
+vars=c("date98","size98","x98weight98")
+sub('98','04',vars)
+gsub('98','04',vars)
+```
+
+### match and pmatch
+match returns the index of each of the element in the first vector in the second vector. For elements in the first vector that do not appear in the second vector, the corresponding index is defined by nomatch argument, or NA.
+```{r match pmatch}
+match(1:10,c(7,2,5,4,3),nomatch=0)
+1:10 %in% c(7,2,5,4,3) #for logical results
+
+pmatch("m",c("mean","median","maximum"))
+pmatch("^m",c("mean","median","maximum"))
+pmatch("me",c("mean","median","maximum"))  #returns na since me is not unique
+pmatch("ma",c("mean","median","maximum"))  #returns 3 since ma is unique to maximum
+grep("m",c("mean","median","maximum"))     #compared to grep where all the indices of the matched pattern are returned
+```
+
+### merge matrices and dataframes
+The default behavior of merge is inner join. By setting all=TRUE, all the rows including those not having the common join column values will be joined, with the NA value for the join column. In addition, the joined rows are ordered by the join column (set up using "by" argument). This automatic sorting can be turned off using sort=FALSE. When not sorting, the order is joined rows first, then the rows of the first input dataframe/matrix, then the second input.
+
+When the join column names of the dataframes/matrices are different, use by.x= and by.y=. The all.x= and all.y= are used to include all rows in x or y. These all.x and all.y operations are same as left join and right join, and all.x and all.y take logical input (TRUE or FALSE). In addition, a vector of names or column numbers can be give for by=.
+```{r merge}
+one<-data.frame(a=c(1,7,9,3),b=c(12,18,24,19))
+two<-data.frame(a=c(9,3,2,7,8),y=c(108,209,107,114,103))
+merge(one,two,by="a")
+merge(one,two,by="a",all=TRUE)
+merge(one,two,by="a",all=TRUE,sort=FALSE)
+merge(one,two,by="a",sort=FALSE)
+
+three<-data.frame(d=c(1,7,9,3),b=c(12,18,24,19))
+four<-data.frame(a=c(9,3,2,7,8),y=c(108,209,107,114,103))
+merge(three,four, by.x="d",by.y="a")
+merge(three,four, by.x="d",by.y="a",all.x=TRUE)
+
+five<-data.frame(d=c(1,7,9,3),b=c(12,18,24,19),e=c(2,4,6,3))
+six<-data.frame(a=c(9,3,2,7,8),y=c(108,209,107,114,103),z=c(6,3,7,9,4))
+merge(five,six, by.x=c("d","e"),by.y=c("a","z")) #only rows with all the matched join columns will be included
+```
+
+### reshape
+reshape() converts data between long and wide formats. The long data format has the following types of columns:
+1. index columns, which will be used as the index column in wide format, and are defined by idvar=
+2. time variables. Each unique combination of the time variable and index column corresponds to a row in the wide format. The rows are ordered by the time variable orders for each index column. The time variables are defined by timevar=
+3. variables of interest. Each row corresponds to a variable of interst level will be expanded a column in the wide format. variable of interest is defined as v.names=
+4. directions="long" or "wide"
+5. varying= when converting to "long" format.
+```{r reshape}
+firmdata<-data.frame(firm=rep(c(7,12,19),times=c(3,3,3)),time=rep(c(1,2,3),3),x=c(7,19,12,13,18,9,21,15,7))
+newdata=reshape(firmdata,idvar="firm",timevar="time",v.names="x",direction="wide")
+longdata=reshape(newdata,direction="long")
+
+widefirm=data.frame(firm=c(7,12,19),x1=c(7,13,21),x2=c(19,18,15),x3=c(12,9,7))
+longfirm=reshape(widefirm,idvar="firm",varying=c("x1","x2","x3"),times=c(1,2,3),v.names="x",direction="long")
+longfirm[order(longfirm$firm),]
+```
+
+### exapnd.grid
+expand.grid() accepts vectors or lists of vectors, and create dataframe for each combination of the values from the vectors. The created dataframe can then be processed by apply() for grid serach or grid operations
+```{r expand.grid}
+gridx<-seq(-3,3,length=10)
+gridy<-seq(-3,3,length=10)
+gridx
+gridy
+values<-expand.grid(x=gridx,y=gridy)
+head(values)
+result=cbind(values,result=apply(values,1,function(z)sin(z[1])*cos(z[2])))
+dim(result)
+result[result[,3]==max(result[,3]),]
+```
+
+### probability distributions
+q-quantile       input: probability; output: deviate, such as z value
+p-probability    input:deviate;      output: probability
+d-density        input:deviate;      output: density value
+r-randoam number input:sample size;  output: vector of random numbers
+
+norm:     Normal
+pois:     Poisson
+t:        Student's t
+exp:      Exponential
+binom:    Binomial
+f:        F
+gamma:    Gamma
+chisq:    Chi-square
+unif:     Uniform
+```{r distributions}
+qnorm(0.99,lower.tail=TRUE)   #1.28, 1.64, 1.96, 2.33 for 10, 5, 2.5, 1% probability all single sided
+pnorm(1,lower.tail=TRUE)      #16%, 2.5%, 1% for 1, 2, 2.33 deviates all single sided
+dnorm(1)                      #density value at deviate is 1
+rnorm(10,mean=0,sd=1)         #generate 10 normal distributed numbers
+```
+
+### descriptive statistics
+mean()
+median()
+range()
+kurtosis()
+skewness()
+var()
+mad()
+sd()
+IQR()
+weighted.mean()
+stem():   stem and leaf diagram
+boxplot()
+cor() use="all.obs","complete.obs","pairwise.complete.obs"
+summary() provides minimum, mean, maximum,and quartiles
+quantile() returns value of any desired quantiles
+
+### Hypothesis tests
+all the tests have alternative="two.sided","less" and "greater", and conf.level=
+prop.test():      equality of proportions
+binom.test():     one sample binomial
+t.test():         students' t-test
+cor.test():       correlation coefficient
+wilcox.test():    Wilcoxon test
+chisq.test():     Contingency tables
+var.test():       Equality of variance
+ks.test():        goodness of fit
+
+### statistical models
+lm():    linear model
+glm:     generalized linear model
+tree:    CART
+nls:     non-linear models
+aov:     analysis of variance
+gam:     generalized additive models
+cph:     cox proportional hazards
+loess:   local regression models
+
+functions displaying information about models are summary(), coef(), predict(), resid(), and plot(). These function should be implemented for all the models. 
+
+common arguments to modeling functions:
+formula=:    first argument
+data=:       data frame to attach for model
+subset=: logical experssion to select data to be used
+weights=:    vector of weights to be applied to model
+na.action=:  how to preprocess missing values
+  -na.fail:  print error messages
+  -na.omit:  default, omit missing value observations
+  -na.pass:  do nothing
+ 
+#### formulas in models
+y~x1+x2+x3            additive model
+y~x1+x2+x3-1          additive model without intercept
+respons~.             response vs. all the other variables in the data frame
+y~a*b*c               full factorial ANOVA model with a, b, c factors
+y~x+I(x^2)+I(x^3)     polynomial regression
+
+
+### three components of plots
+1. high level functions that generate the entire plots including barplot(), boxplot(), contour(), dotchart(), hist(), pairs(), persp(), pie(), and plot()
+
+2. low level functions that add to existing plots including abline(), arrows(), axis(), frame(),legend(),lines(), points(), rug(), symbols(), text(), and title()
+
+3. graphics parameters used in either functions or the par function that change the layout or appearance of a plot. These parameters control things like margins, text size, tick marks, plotting style, and overall size of the plots.
+
+### devices
+the window of the monitor is the default device to display the plots. Other devices inculde postscript(), pdf(), bitmap(), and jpeg().
+
+postscript(file="myplot.ps")
+... plotting commands go here ...
+dev.off()
+
+dev.copy(device=jpeg, file="picture.jpg")
+dev.off()
+
+### multiple plots on a page
+mfrow=c(nrow,ncol)
+mfcol=c(nrow,ncol)
+mfrow and mfcol will draw the plots in rows and columns, respectively. These functions can only be set in par() function. mai and mar set up the inner margin in inch and lines of text, respectively. oma and omi set up the outer margins of the plots in number of texts and inches, respectively. 
+```{r multiple plots}
+par(mfrow=c(2,2), oma=c(0.2,0.2,0.2,0.2), mai=c(0.2,0.2,0.2,0.2))
+par(mfrow=c(2,2))
+curve(sin(x),from=-pi, to=pi, main="Sine")
+curve(cos(x),from=-pi, to=pi, main="Cosine")
+curve(tan(x),from=-pi, to=pi, main="Tangent")
+curve(sin(x)^2/cos(x),from=-pi, to=pi, main="Sin^2/Cosine")
+```
+
+### plot types and legends
+polt() function accepts type= arguments, which can be "p"(points), "l"(lines), "b"(both), "s"(stairstep), and "n"(none). none will only show axes, allowing multiple lines to be plotted. 
+legend() accepts x= and y= to specify the location of the legend and legend= to specify the text to appear in the legend. the title() is also used to add a title. 
+
+mgp argument of the par() function is a vector of 3 values which specify the margin line for the axis title, axis labels and axis line.mpg(c(5,1,0))
+```{r plot types and legends}
+par(mfrow=c(1,1))
+data(USArrests)
+popgroup=cut(USArrests$UrbanPop,3,labels=c("Low","Medium","High"))
+plot(range(USArrests$Murder),range(USArrests$Rape),type="n", xlab="Murder",ylab="Rape")
+points(USArrests$Murder[popgroup=="Low"],USArrests$Rape[popgroup=="Low"],col="Red")
+points(USArrests$Murder[popgroup=="Medium"],USArrests$Rape[popgroup=="Medium"],col="Green")
+points(USArrests$Murder[popgroup=="High"],USArrests$Rape[popgroup=="High"],col="Blue")
+legend(2,44,levels(popgroup),col=c("Red","Green","Blue"),pch=1)
+title("Rape vs Murder by Population Density")
+```
+
+### Graphic parameters
+Graphic parameters can be used in both par() and individual plotting routine. They can also be queried using par("parameter").
+cex= character expansion (default=1)
+pch= plotting character (using character or integer)
+usr= vector of length 4 givering minimum and maximums of figure
+col= colors-use names from the colors() function
+srt= string rotation, in degrees colckwise
+pin= vector with width and height of plotting region
+fin= vector with width and height of figure region
+lty= integer specifying line type
+
+
+### plotting limits
+using xlim=c(x, y), and ylim=c(x, y) to restrict plotting to a reduced range of points, or to expand the range of points.
+```{r plotting limits}
+data(airquality)
+with(airquality,plot(Temp,Ozone))
+
+# to display temperatures less than 80 and ozone less than 100, we could use
+with(airquality,plot(Temp,Ozone,xlim=c(min(Temp,na.rm=TRUE),80),ylim=c(min(Ozone,na.rm=TRUE),100)))
+```
+
+### custom axes
+axis() function allows creation of custom axes. xaxt= and yaxt= can be set at "n" to suppress the default creation of axes when producing a plot. side=(1=bottom, 2=left, 3=top, 4=right), at=, a vector of location for tick marks and labels, and labels= to specify the labels.
+
+```{r axes}
+data(USArrests)
+popgroup=cut(USArrests$UrbanPop,3,labels=c("Low","Medium","High"))
+rmeans=with(USArrests, aggregate(Rape,list(popgroup),mean))
+where=barplot(rmeans[,2],xlab="Population Density") #where returns the center of the barplot
+axis(1,at=where,labels=as.character(rmeans[,1])) #add the bottom axis
+box()
+title("Average Rape Rate by Population Density")
+```
+
+### the lattice library
+The lattic library provides a complete set of functions for producing conditioning plots. In a conditioning plot, a data set is broken up into several parts, and each part is plotted on identical axes. The lattice library uses the formula notation of statistical models to describe the desired plot, adding the vertial bar to specify teh conditioning variable. All the scales of the subplots are identical, and the margins between the plots are eliminated to make it easy to compare.
+```{r lattice}
+data("Orange")
+library("lattice")
+xyplot(circumference~age|Tree,data=Orange,main="Size of Orange Trees",type="l")
+```
+
+### other lattice plots
+In addition to xyplot(), there are following functions:
+cloud()        3D scatter plot
+qq()           Quantile-Quantile plots
+dotplot()      Dot plots
+wireframe()    3D Surface plots
+histogram()    histogram
+barchart()     bar charts
+countourplot() contour plots
+splom()        scatter plot matrices
+
+Basic functions can also be used:
+panel.abline()
+panel.arrows()
+panel.lines()
+panel.points()
+panel.segments()
+panel.text()
+```{r lattice complex panel}
+library(lattice)
+mypanel=function(x,y){
+  panel.xyplot(x,y)
+  panel.abline(lm(y~x))
+}
+
+mypanel1=function(x,y){
+  panel.lines(x,y)
+  panel.points(x,y)
+}
+xyplot(circumference~age|Tree,data=Orange,panel=mypanel1,main="Size of Orange Trees")
+```
+
+### Other options to Lattice functions
+layout= a vector of 2 or 3 giving the number of rows, columns, and optionally, pages of the lattice display
+as.table= TRUE, print panels in ascending order from left to right and top to bottom
+subscripts= TRUE, prvides an argument called subscripts containing the subscripts of the observations
+page= function to be called after each page of a multipage display. ??? Set to readline to imitate par(ask=TRUE)
