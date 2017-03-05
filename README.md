@@ -4,5 +4,7 @@ According to my personal experience of learning Machine Learning algorithms, I f
 It is important to note that the R code in this repo is far from being optimized for real machine learning applications. It provides a good starting point to understand the commonly used machine learning algorithms and practice R programming. If you have any suggestions that can make the algorithm better, please feel free to let me know.           
 
 Finally, to see the HTML R markdown notebook, please use one of the following two methods:         
-1. prepend the original github URL by http://htmlpreview.github.com/. For example, to see the LinearRegression.nb.html, use the following link: http://htmlpreview.github.io/?https://github.com/yuanDataScience/Machine_Learning_R/blob/master/Ex1/LinearRegress.nb.html          
-2. use https://yuandatascience.github.io/Machine_Learning_R/folder name/html file name. For example, to see the LinearRegression.nb.html file in the folder Ex1, use https://yuandatascience.github.io/Machine_Learning_R/Ex1/LinearRegress.nb.html
+1. prepend the original github URL by http://htmlpreview.github.com/. For example, to see the LinearRegression.nb.html, use the following link:           
+http://htmlpreview.github.io/?https://github.com/yuanDataScience/Machine_Learning_R/blob/master/Ex1/LinearRegress.nb.html          
+2. use https://yuandatascience.github.io/Machine_Learning_R/folder name/html file name. For example, to see the LinearRegression.nb.html file in the folder Ex1, use the following link:          
+https://yuandatascience.github.io/Machine_Learning_R/Ex1/LinearRegress.nb.html
