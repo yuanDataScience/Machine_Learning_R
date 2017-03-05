@@ -67,18 +67,18 @@ $$J\left( \theta \right) = \frac{1}{2m}\sum_{i=1}^{m} \left( h_\theta \left(x^\l
         
 The gradient descent can be obtained by calculating the derivative of $\frac{\partial J\left( \theta \right)}{\partial~\theta}$, which equals to:
 
-$$\frac{1}{m}\sum_{i=1}^{m} \left( h_\theta \left(x^ \left(i \right) \right) - y^\left(i\right)\right)x^\left(i\right)~~~~~~~~~~~~~~~~~~~ Eq\left(2\right)$$
+$$\frac{1}{m}\sum_{i=1}^{m}\left( h_\theta \left(x^ \left(i \right) \right) - y^\left(i\right)\right)x^\left(i\right) ~~~~~~~~~~~~~~~~~~~ Eq\left(2\right)$$
       Considering the leaning rate $\alpha$, the value of $\theta$ is updated iteratively as the following:
 
-$$\theta = \theta - \alpha\frac{1}{m}\sum_{i=1}^m\left(h_\theta\left(x^\left(i\right)\right)-y^\left(i\right)\right)x^{\left(i\right)}~~~~~~~~~~~~~~~~~~~ Eq\left(3\right)$$
+$$\theta = \theta - \alpha\frac{1}{m}\sum_{i=1}^m\left(h_\theta\left(x^\left(i\right)\right)-y^\left(i\right)\right)x^{\left(i\right)} ~~~~~~~~~~~~~~~~~~~ Eq\left(3\right)$$
       Eq(3) can be expressed in the matrix format as: 
-$$\theta = \theta - \frac{\alpha}{m} X^T\left(X\theta-Y\right)~~~~~~~~~~~~~~ Eq\left(4\right)$$ 
+$$\theta = \theta - \frac{\alpha}{m} X^T\left(X\theta-Y\right) ~~~~~~~~~~~~~~ Eq\left(4\right)$$ 
 
   where X is the matrix consisting of observation $x^{\left(i\right)}$ as its ith row, and Y is the vector          consisting of the target variable, with observation, $y^{\left(i\right)}$ as its ith element. 
 
    Using the same definition, we can define Eq(1) in matrix format as:
 
-$$J\left(\theta\right)=\frac{1}{2m}\left(X\theta-Y\right)^T\left(X\theta-Y\right)~~~~~~~~~~Eq\left(5\right)$$
+$$J\left(\theta\right)=\frac{1}{2m}\left(X\theta-Y\right)^T\left(X\theta-Y\right) ~~~~~~~~~~Eq\left(5\right)$$
 
 
   In the following R code, Eq(4) and Eq(5) were be used to implement the cost function and gradient descent, respectively. 
