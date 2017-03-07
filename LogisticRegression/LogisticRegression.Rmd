@@ -8,7 +8,7 @@ output:
 
 ### Introduction
 
-This project implements the logistic regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notbook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The data used in this project are ex2data1.txt and ex2data2.txt. These txt files are included in the folder.  
+This project implements the logistic regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The data used in this project are ex2data1.txt and ex2data2.txt. These txt files are included in the folder.  
 
 #### Function list: Functions implemented in this markdown notebook
 * mapFeature - Function to generate polynomial features
