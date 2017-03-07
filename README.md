@@ -6,5 +6,5 @@ It is important to note that the R code in this repo is far from being optimized
 Finally, to see the HTML R markdown notebook, please use one of the following two methods:         
 1. prepend the original github URL by http://htmlpreview.github.com/. For example, to see the LinearRegress.nb.html in LinearRegression folder of this repo, use the following link:           
 http://htmlpreview.github.io/?https://github.com/yuanDataScience/Machine_Learning_R/blob/master/LinearRegression/LinearRegress.nb.html          
-2. use https://yuandatascience.github.io/Machine_Learning_R/folder name/html file name. For example, to see the LinearRegress.nb.html file in the folder Ex1, use the following link:          
+2. use https://yuandatascience.github.io/Machine_Learning_R/folder name/html file name. For example, to see the LinearRegress.nb.html file in the folder LinearRegression, use the following link:          
 https://yuandatascience.github.io/Machine_Learning_R/LinearRegression/LinearRegress.nb.html
