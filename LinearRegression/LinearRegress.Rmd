@@ -1,23 +1,22 @@
 ---
-title: 'Programming Exercise 1: Linear Regression'
+title: "Linear Regression"
 output:
-  pdf_document: default
   html_notebook: default
   html_document: default
+  pdf_document: default
 ---
 
 ### Introduction
+This project implements the linear regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The data used in this project are exdata1.txt and exdata2.txt. These txt files are included in the folder.  
 
-This exercise implements the linear regression using R. For the detailed information about this assignment, please refer to the Programing Exercise 1: Linear Regression pdf file you obtained from the Machine Learning Coursera course.
-
-#### Functions implemented in this markdown notebook
+#### Function list: Functions implemented in this markdown notebook
 * warmUpExercise - Function to generate a 5 by 5 identity matrix
 * computeCost - Function to compute the cost of linear regression. It can be used for both univariate and multiple variables
 * gradient Descent - Function to run gradient descent.It can be used for both univariate and multiple variables 
 * featureNormalize - Function to normalize features
 * normalEqn - Function to compute the normal equations based on Ordinary Least Square (OLS)
 
-The Ex1.Rmd markdown file read the data files, organized all of the functions defined in the above list. The corresponding notbook and the markdown files also explained the implementation of the algorithms according to the best knowledge of the author. The data used in this excercise are exdata1.txt and exdata2.txt. These txt files were included in this folder. In addition, instead of implementing a plotData function specific for displying the data, the data visualization was accomplished using ggplot2 package. 
+Instead of implementing a plotData function specific for displying the data, the data visualization was accomplished using ggplot2 package. 
 
 Before we implement the functions, we first load the R libraries needed for this assignment.
 ```{r}
@@ -26,25 +25,21 @@ library(tidyverse)
 library(rgl)
 ```
 
-**1. simple function for defining matrix **          
-
-   Define the function warmUpExercise() to return a 5 by 5 identity matrix.
-
-
-
+**1. simple function for defining matrix **                         
+Define the function warmUpExercise() to return a 5 by 5 identity matrix.
 
 ```{r}
 
 warmUpExercise<-function() {diag(5)}
 warmUpExercise()
 ```
-   R has the function diag(n) to define the identity matrix of n rows and n columns with the diagonal elements as 1.
+R has the function diag(n) to define the identity matrix of n rows and n columns with the diagonal elements as 1.
 
 **2. Linear regression with one variable **         
-   In this part of the exercise, the linear regression will be used to predict the profits for a food truck using the      populations from different cities as the predictor. The prediction of the linear regression will help you to select     which city to expand next based on the population of that city.
+In this part of the project, the linear regression will be used to predict the profits for a food truck using the populations from different cities as the predictor. The prediction of the linear regression will help you to select which city to expand based on the population of that city.
 
-__2.1. Plotting the data __     
-Data exploration is always the first step to do any data analysis. For this dataset, scatter plot was used to visualize the data. In the following scatter plot, profit was plotted against the population of the cities.
+**2.1. Plotting the data **                    
+Data exploration is always the first step for data analysis. For this dataset, scatter plot was used to visualize the data. In the following scatter plot, profit was plotted against the population of the cities.
 
 ```{r}
 #read data from ex1data1.txt
@@ -54,37 +49,36 @@ names(profit1)<-c("population","profit")
 ggplot(data=profit1,aes(x=population,y=profit))+geom_point(col="red",pch=4)+xlab("Population of City in 10,000s")+ylab("Profit in $10,000s")
 
 ```
+From this plot, profit generally increaes with the population of cities.
 
-  From this plot, profit generally increaes with the population of cities.
-
-**2.2. Gradient Descent **      
-  In this part, you will fit the linear regression parameters $\theta$ to the dataset using gradient descent.
+**2.2. Gradient Descent **                
+In this part, we will fit the linear regression parameters $\theta$ to the dataset using gradient descent.
   
-**2.2.1. Update Equations **          
+**2.2.1. Update Equations **                    
 The objective of linear regression is to minimize the cost function:
 $$J\left( \theta \right) = \frac{1}{2m}\sum_{i=1}^{m} \left( h_\theta \left(x^\left(i\right) \right)-y^\left(i\right) \right)^2~~~~~~~~~~~~~~~~~~~ Eq\left(1\right)$$
-        where the hypothesis $h_\theta\left(x\right) = \theta^T x = \theta_0 + \theta_1 x_1$, and $x^{\left(i\right)}$ and $y^{\left(i\right)}$ corresponds to the preictor and target variables x and y for the ith observation, respectively.  
+where the hypothesis $h_\theta\left(x\right) = \theta^T x = \theta_0 + \theta_1 x_1$, and $x^{\left(i\right)}$ and $y^{\left(i\right)}$ corresponds to the preictor and target variables x and y for the ith observation, respectively.  
         
 The gradient descent can be obtained by calculating the derivative of $\frac{\partial J\left( \theta \right)}{\partial~\theta}$, which equals to:
 
 $$\frac{1}{m}\sum_{i=1}^{m}\left( h_\theta \left(x^ \left(i \right) \right) - y^\left(i\right)\right)x^\left(i\right) ~~~~~~~~~~~~~~~~~~~ Eq\left(2\right)$$
-      Considering the leaning rate $\alpha$, the value of $\theta$ is updated iteratively as the following:
+Considering the leaning rate $\alpha$, the value of $\theta$ is updated iteratively as the following:
 
 $$\theta = \theta - \alpha\frac{1}{m}\sum_{i=1}^m\left(h_\theta\left(x^\left(i\right)\right)-y^\left(i\right)\right)x^{\left(i\right)} ~~~~~~~~~~~~~~~~~~~ Eq\left(3\right)$$
-      Eq(3) can be expressed in the matrix format as: 
+Eq(3) can be expressed in the matrix format as: 
 $$\theta = \theta - \frac{\alpha}{m} X^T\left(X\theta-Y\right) ~~~~~~~~~~~~~~ Eq\left(4\right)$$ 
 
-  where X is the matrix consisting of observation $x^{\left(i\right)}$ as its ith row, and Y is the vector          consisting of the target variable, with observation, $y^{\left(i\right)}$ as its ith element. 
+where X is the design matrix consisting of observation $x^{\left(i\right)}$ as its ith row, and Y is the target variable vector, with $y^{\left(i\right)}$ as its ith element. 
 
-   Using the same definition, we can define Eq(1) in matrix format as:
+Using the same definition, we can define Eq(1) in matrix format as:
 
 $$J\left(\theta\right)=\frac{1}{2m}\left(X\theta-Y\right)^T\left(X\theta-Y\right) ~~~~~~~~~~Eq\left(5\right)$$
 
 
-  In the following R code, Eq(4) and Eq(5) were be used to implement the cost function and gradient descent, respectively. 
+In the following R code, Eq(4) and Eq(5) were be used to implement the cost function and gradient descent, respectively. 
 
 **2.2.2. Implementation **          
- In the next step, we will establish the model by adding the intercept column, $\theta_0$ to the design matrix, profit_datax, initialize the initial parameters including all the elements in $\theta$ as zeros, and set up the learning rate $\alpha$ to 0.01. In addition, values of target variable for all the observations are stored in the vector profit_targety.
+ In the next step, we will establish the linear regression model by adding the intercept column, $\theta_0$ to the design matrix, profit_datax, initialize $\theta$ vector by setting all its elements as 0, and set up the learning rate $\alpha$ to 0.01. In addition, values of target variable for all the observations are stored in the vector profit_targety.
  
 ```{r}
 profit_datax=model.matrix(profit1$profit~profit1$population)
@@ -93,24 +87,20 @@ profit_targety<-profit1$profit
 profit_theta=c(0,0)
 ```
 **2.2.3. Computing the cost $J\left(\theta\right)$ **       
- In this part, the cost function was implemented based on $Eq\left(5\right)$
+In this part of the project, the cost function was implemented based on $Eq\left(5\right)$
  
 ```{r}
 computeCost<-function(X,Y,theta){
-  
-  
   cost<-1/2*t(X%*%theta-Y)%*%(X%*%theta-Y)/length(Y)
   return(cost[1,1])
 }
 initialCost<-computeCost(profit_datax,profit_targety,profit_theta)
 initialCost
 ```
-The output of the cost function when $\theta$ was initialized to zeros was 32.07. This value is constent to the answer given in the assignment. 
+The output of the cost function when $\theta$ was initialized to zeros should be around 32.07. 
 
 **2.2.4. Gradient descent **         
- Next is to implement the gradient descent function. This function was written by the class. Here, the function was implemented in R using the same algorithm. The gradient descent function will run 1500 iterations, and return the costs and theta values for each iteration.
- 
- 
+Next, we implemented the gradient descent function in R. The gradient descent function was set up to run for 1500 iterations, and return the cost value for each iteration and the theta values for the final step. The iteration started from an initial theta vector with all its elements set at zero. After the iteration completed, the values of the cost were plotted versus the iteration index.
 ```{r}
 gradientDescent<-function(Alpha,data_X,Y,Theta,Iter){
   
@@ -134,11 +124,10 @@ profit_costs<-profit_results$costs
 
 plot(x=1:1500,y=profit_costs,ylim=c(min(profit_costs)-0.5,max(profit_costs)+0.5),xlab="iteration")
 
-
 ```
-This plot showed that the value of cost function decreased dramatically with the increase of the number of the iterations, with the learning rate set at 0.01. 
+This plot showed that the value of cost function decreased dramatically with the iterations when learning rate was set at 0.01. 
 
-Next, we will predict the price of two houses using the established univariate model.
+Next, we will predict the price of two houses using the established univariate linear regression model.
 ```{r}
 #predict the values
 predict1<-c(1,3.5)%*%result_theta
@@ -146,21 +135,17 @@ cat('For population = 35,000, we predict a profit of ',predict1*10000,'\n')
 predict2<-c(1,7)%*%result_theta
 cat('For population = 70,000, we predict a profit of ',predict2*10000,'\n')
 ```
+Finally, we plot the data points and the regression line based on the linear regression model we built on the training dataset.
 ```{r}
 #plot the regression line and the data points
-
-#plot(profit1$population,profit1$profit,type="n")
-#abline(results[[2]][1],results[[2]][2])
-#points(profit1$population,profit1$profit,col="red")
-
 ggplot(data=profit1,aes(x=population,y=profit))+geom_point(col="red") + geom_abline(slope=result_theta[2],intercept = result_theta[1], col="blue")
+
 ```
-This plot showed the regression line obtained by the univariate linear regression model we established.
+
 
 **2.4. Visualization $J\left(\theta\right)$ **
 
-The cost function $J\left(\theta\right)$ was plotted over a 2-dimensional grid of $\theta_0$ and $\theta_1$ values. In R, the gird is generated by expand.grid function. The ranges of $\theta_0$ and $\theta_1$ are [-10,10] and [-1,4], respectively. 100 points were selected for both $\theta_0$ and $\theta_1$. The cost for each pair of the $\theta_0$ and $\theta_1$ combination was calculated by the computeCost function, and the 3-dimensional plot of the cost versus $\theta_0$ and $\theta_1$ was generated using the plot3d function of the rgl package. The 3D plot is shown in a pop-up window, and you can ajust the size of the plot by adjusting the size of the window. 
-
+In this section, the cost function $J\left(\theta\right)$ was plotted over a 2-dimensional grid of $\theta_0$ and $\theta_1$ values. The gird was generated using the expand.grid R function. The ranges of $\theta_0$ and $\theta_1$ were [-10,10] and [-1,4], respectively. 100 points were selected for both $\theta_0$ and $\theta_1$. The cost for each $\theta_0$ and $\theta_1$ combination was calculated by the computeCost function, and the 3-dimensional plot of the cost versus $\theta_0$ and $\theta_1$ was generated using the plot3d function of the rgl package. The 3D plot is shown in a pop-up window, and you can adjust the size of the plot by adjusting the size of the window.
 
 ```{r}
 
@@ -173,7 +158,7 @@ theta_grids_calculation<-as.data.frame(t(theta_grids))
 J_vals<-sapply(theta_grids_calculation,function(x) computeCost(profit_datax,profit_targety,x))
 plot3d(theta_grids$theta0,theta_grids$theta1,J_vals,col="blue")
 ```
-In addition to the 3D plot, the contour plot was generated to show the optimum $\theta$ values found by the regression algorithm corresponding to the minimum cost.
+In addition to the 3D plot, a contour plot was generated to show the optimum $\theta$ values found by the regression algorithm corresponding to the minimum cost.
 
 ```{r}
 J_matrix<-matrix(J_vals,100,100)
@@ -182,7 +167,7 @@ points(result_theta[1],result_theta[2],col="red")
 ```
 **3. Linear regression with multiple variables **
 
-This part implemented linear regression with multiple variables to predict the prices of houses. The model contains information on houses sold and make a model of housing prices based on the house information.
+This part of the project implemented linear regression with multiple variables to predict the prices of houses. Based on the information about the houses that were sold, a multivariate linear regression model was built to predict the housing prices based on the house information.
 
 The file ex1data2.txt contains a training set of housing prices in Portland, Oregon. The columns of this file represent the size of the house (in square feet), the number of bedrooms, and the price of the houses, respectively. 
 
@@ -195,12 +180,13 @@ house1<-read.csv("ex1data2.txt",header=FALSE)
 names(house1)<-c("size","bedrooms","price")
 head(house1)
 ```
+
 To perform fast gradient descent converge, we perform feature scaling so that all the features have the similar scale, with a mean of zero. The procedure of the feature scaling includes two steps: substracting the mean value of each feature from the dataset, and then dividing the feature values by their respective "standard deviations". In R, this feature normalization is performed by scale() function. This function centers and scales the data by default.
 ```{r}
 house1_features<-scale(house1[,1:2])
 head(house1_features)
 ```
-After the feature scaling, the difference in the magnitude of size and bedrooms is much smaller.
+We can see that after the feature scaling, the difference in the magnitude of size and bedrooms is much smaller.
 
 **3.2. Gradient Descent **          
 Next, the design matrix was defined using the normalized house features. Here I used the model.matrix function to generate the design matrix. In addition, in this section, different learning rates (0.3,0.1,0.03,0.01 and 0.005) were tested to find the most appropriate learning rate that can converge fast. The computeCost and GradientDescent functions implemented based on Eqs(4) and (5) can be directly applied to multivariate models.
@@ -222,8 +208,9 @@ house_cost<-house_costs%>%gather(alpha,cost,-iteration)
 
 ggplot(house_cost,aes(x=iteration,y=cost,group=alpha,col=alpha))+geom_line()
 ```
-From this figure, we can see that when learning rate was 0.3, the cost decreased and converged very fast. Therefore, we will use the theta values obtained by the learning rate of 0.3 in the follwoing steps. Now, we will use the theta obtained from the optimum learning rate to predict the price of a house with 1650 square feet and 3 bedrooms. Remeber that we need to do the feature scaling before the prediction.
+From this figure, we can see that when learning rate was 0.3, the cost decreased and converged very fast. Therefore, we will use the theta values obtained by the learning rate of 0.3 in the follwoing steps.
 
+By using the theta value obtained from the optimum learning rate, we can then predict the price of a house with 1650 square feet and 3 bedrooms. Remeber that we need to do the feature scaling before the prediction.
 ```{r}
 # get the theta value obtained by the learning rate of 0.3
 house_theta<-house_results[[1]]$thetas
@@ -245,7 +232,7 @@ which results in
 $$X^TY = X^TX\theta$$
 which leads to:
 $$\theta = \left(X^TX\right)^{-1}X^TY~~~~~~~~~~~~~~~~~~~~~Eq\left(6\right)$$
-Based on Eq(6), the OLS solution was implemented by the function normalEqn(design_matrix, targety):
+OLS solution was implemented in function normalEqn() based on Eq(6):
 ```{r}
 #normal equation by OLS
 house_normal<-read.csv("ex1data2.txt",header=FALSE)
@@ -262,8 +249,8 @@ theta_ols<-normalEqn(design_matrix_house,house_normal$price)
 px=c(1,1650,3)
 pred_ols<-t(px)%*%theta_ols
 
-cat("the predicted price for a house with 1650 square feet and 3 bed room by OLS is ",pred_ols,"\n",
-    "the predicted price for a house with 1650 square feet and 3 bed room by gradient descent is ",pred_gradient,"\n")
+cat("The predicted price for a house with 1650 square feet and 3 bed room by OLS is ",pred_ols,"\n",
+    "The predicted price for a house with 1650 square feet and 3 bed room by gradient descent is ",pred_gradient,"\n")
 
 ```
 Comparing the price predicted by gradient descent and OLS, we can see that both methods obtained consistent results. 

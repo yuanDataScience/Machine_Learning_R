@@ -1,0 +1,342 @@
+---
+title: 'Logistic Regression'
+output:
+  html_notebook: default
+  html_document: default
+  
+---
+
+### Introduction
+
+This project implements the logistic regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notbook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The data used in this project are ex2data1.txt and ex2data2.txt. These txt files are included in the folder.  
+
+#### Function list: Functions implemented in this markdown notebook
+* mapFeature - Function to generate polynomial features
+* plotDecisionBoundary - Function to plot classifier's decision boundary
+* plotData - Function to plot 2D classification data 
+* sigmoid - Sigmoid Function 
+* predict - Logistic Regression Prediction Function
+* fR - Logistic Regression cost function without regulation
+* gR - Logistic Regression graident function without regulation
+* fR_reg - Regularized Logistic Regression cost function
+* gR_reg - Regularized Logistic Regression gradient function
+
+Before we implement the functions, we first load the R libraries for this project.
+```{r}
+#load the library
+library(tidyverse)
+library(optimx)
+library(ucminf)
+```
+
+**1. Ligistic Regression **          
+In this section, we will build a logistic regression model to predict whether a student gets admitted into a university based on their results on two exams. The training set consists of the historical data from previous applicants. For each training example, you have the applicant's scores on the two exams, and the admissions decision. 
+The task is to build a classification model that estimates an applicant's probability of admission based on the scores from those two exams. Now, let's read the data.
+```{r}
+exams<-read.csv("ex2data1.txt",header=FALSE)
+names(exams)<-c("Exam1","Exam2","Admission")
+design_matrix<-model.matrix(exams$Admission ~ exams$Exam1+exams$Exam2)
+targety<-exams$Admission
+```
+
+**1.1. Visualizing the data **        
+Again, the first step for data analysis is to visualize the data. The function plotData() was used to visualize the 2D classification data. This function was implemented using ggplot2 package.
+```{r}
+plotData<-function(X,y){
+  ggplot(X,aes(x=X[,1],y=X[,2],shape=y,colour=y,fill=y))+
+    geom_point(size=3)+scale_shape_manual(values=c(21,3))+xlab("Exam 1 score")+ylab("Exam 2 score")
+}
+
+plotData(exams[,1:2],ifelse(exams$Admission==0,"Not admitted","Admitted"))
+```
+
+This plot showed that there is a clear boundary between the admitted and not admitted students based on their two exam scores.
+
+**1.2. Implementation **          
+**1.2.1. Sigmoid Function **        
+The logistic regression hypothesis is defined as:
+
+$$h_\theta\left(x\right) = g\left(\theta^Tx\right) ~~~~~~~~~~~~~~~~~ Eq\left(1 \right) $$,
+
+where function g is the sigmoid function. The sigmoid function is defined as:
+
+$$g\left(z\right)=\frac{1}{1+e^{-z}} ~~~~~~~~~~~~~~~~~Eq\left(2 \right)$$ 
+for large value of x, the sigmoid should be close to 1, while for large negative values, the sigmoid should be close to 0. Sigmoid(0)=0.5. Sigmoid function was implemented in the following R code. 
+
+
+```{r}
+sigmoid<-function(x){
+  1/(1+exp(-x))
+}
+
+```
+Since R is a vectorized programming language, the implemented sigmoid function works well when the input x is a scalar, vector or matrix.  Next, We will test the sigmoid function using scalar, vector and matrix variables as the input. 
+ 
+```{r}
+sigmoid(0)
+testv<-c(1,2,3,4,10^5)
+testmatrix<-matrix(sample(1:10,size=100,replace=TRUE),nrow=10)
+sigmoid(testv)
+sigmoid(testmatrix)
+```
+From the tests, we can see that the sigmoid function works well for all the different input types.
+
+**1.2.2. Cost function and gradient **          
+The cost function of the logistic regression can be derived from the negative of the log likelihood of the n obersevations. In fact, minimizing the cost function is the same as maximizing the log likelihood. Given that $h_\theta\left(x^\left(i\right)\right)$ corresponds to the probability of $y^\left(i\right)=1$ where $y^\left(i\right)$ is the target variable of the ith observation, and $y^\left(i\right)$ is the correspondng observed value, the cost function can be defined as:
+
+$$J\left(\theta\right) = \frac{1}{m}\sum_{i=1}^{m}\left[-y^{\left(i\right)}log \left( h_\theta\left(x^{\left(i\right)}\right)\right)-\left(1-y^{\left(i\right)}\right)log\left(1-h_\theta\left(x^{\left(i\right)}\right)\right)\right] ~~~~~~~Eq\left(3\right)$$
+The gradient of the cost function can be obtained by realizing that according to Eqs(1) and (2), and the chain rule:
+
+$$\frac{\partial{h_\theta\left(x\right)}}{\partial\theta} = \frac{\partial{g \left(\theta^Tx\right)}}{\partial (\theta^Tx)}\frac{\partial (\theta^Tx)}{\partial \theta} = \left[\frac{\partial{g \left(\theta^Tx\right)}}{\partial (\theta^Tx)}\right]x$$
+where $\frac{\partial (\theta^Tx)}{\partial \theta} = x$. In addition, an important property of sigmoid function is that 
+
+$$\frac{\partial{g \left(\theta^Tx\right)}}{\partial (\theta^Tx)} = g\left(\theta^Tx\right) \left(1-g\left(\theta^Tx\right)\right)=h_\theta(\theta^Tx)(1-h_\theta(\theta^Tx))$$
+Finally, noticing that in Eq(3), 
+$$\frac{\partial log\left(h_\theta\left(x^{\left(i\right)}\right)\right)}{\partial h_\theta\left(x^{\left(i\right)}\right)} =\frac{1}{h_\theta\left(x^{\left(i\right)}\right)} $$
+we can obtain that
+
+$$\frac{\partial J\left(\theta\right)}{\partial\theta} = \frac{1}{m} \sum_{i=1}^{m} \left( h_\theta \left(x^{\left( i \right)} \right) -y^{\left(i\right)}\right)x^{\left(i\right)} ~~~~~~~~~~~~~~~ Eq\left( 4 \right) $$
+Eqs(3) and (4) can be conveniently expressed in matrix format as:
+$$ J \left( \theta \right) = -\frac{1}{m} \left[ Y^Tlog\left(sigmoid \left(X \theta \right)\right) +(1-Y)^Tlog(1-sigmoid(X\theta))  \right] ~~~~~~~~~~~Eq\left( 5 \right)$$
+and 
+
+$$\frac{\partial J\left(\theta\right)}{\partial\theta} = \frac{1}{m} (X\theta-Y)^TX ~~~~~~~~~~~~~~~ Eq\left( 6 \right) $$
+In Eqs(5) and (6), X is the design matrix, where the ith row of the X matrix corresponds to $x^{(i)}$, and Y is the target variable vector, where the ith element corresponds to $y^{(i)}$. Eqs(5) and (6) were used in the following R code to implement the cost and gradient functions for logistic regression. The cost function was first tested using the initial theta vector, which has all its elements as zeros: 
+```{r}
+fR<-function(theta,X,y){
+  m<-length(y)
+  cost<- -1*(1/m)*(t(y)%*%log(sigmoid(X%*%theta))+t(1-y)%*%log(1-sigmoid(X%*%theta)))
+               return(cost[1,1])
+}
+
+gR<-function(theta,X,y){
+  m<-length(y)
+  grad<--(1/m)*(t(y-sigmoid(X%*%theta))%*%X)
+  return(t(grad))
+}
+
+theta0<-rep(0,times=dim(design_matrix)[2])
+init_cost<-fR(theta0,design_matrix,targety)
+cat('initial cost is ',init_cost)
+```
+The result should be about 0.693.
+
+**1.2.3. Learning parameters using unconstrained minimization function **           
+
+We just tested the cost funtion using the initial theta, $\theta0$, which has all its elements as 0. We still need to find the optimum $\theta$ that can give us the minimum cost given the fixed dataset. Here in this implementation, the optimum theta value was obtained using the ucminf function of the ucminf package. This function requires two inputs:
+
+*The initial values of the parameters we are trying to optimize ($\theta0$).
+*The cost and gradient functions, and the dataset including the design matrix and the target variable vector.
+
+The R code for opimizing the $\theta$ value to minimize cost using the ucminf function is shown in the following R chunk. The corresponding cost obtained at the optimum $\theta$ value was printed out.
+```{r}
+opt_results<-ucminf(par=theta0,fn=fR,gr=gR,X=design_matrix,y=targety)
+cat('Cost at theta found by ucminf: ', opt_results$value,'\n')
+cat('The theta is ',opt_results$par)
+theta<-opt_results$par
+```
+The result should be around 0.203.         
+
+In addition to the ucminf function in the ucminf package, we also tested the BFGS method in the optimx package, as shown in the following R chunk:
+```{r}
+opt_results_optimx<-optim(par=theta0,fn=fR,gr=gR,method='BFGS',X=design_matrix,y=targety)
+
+cat('Cost at theta found by optimx: ', opt_results_optimx$value,'\n')
+cat('The theta is ',opt_results_optimx$par)
+```
+We can see there is some difference in the results obtained by these two methods. 
+
+Once the optimum theta is obtained, it can be used to plot the decision boundary on the training data. In the following plot, decision boundary of the permission data generated by the logistic regression model built on the training dataset was ploted by the plotDecisionBoundary function, which was implemented using ggplot2 package.
+
+```{r}
+plotDecisionBoundary<-function(theta,X,y){
+  y<-as.factor(y)
+  X<-as.data.frame(X)
+  cols<-dim(X)[2]
+  if(cols<=3){
+    plot_x<-c(min(X[,2])-2,max(X[,2])+2)
+    plot_y<--1/theta[3]*(theta[2]*plot_x+theta[1])
+    plotData(as.data.frame(X[,2:3]),y)+
+      geom_abline(slope=-theta[2]/theta[3],intercept=-theta[1]/theta[3],col="green")+
+      xlab("Exam1")+ylab("Exam2")
+  }
+  else if(cols>3){
+    u<-seq(from=range(X[,2])[1],to=range(X[,2])[2],length.out=50)
+    v<-seq(from=range(X[,3])[1],to=range(X[,3])[2],length.out=50)
+    uv<-expand.grid(u,v)
+    uv.exp<-uv
+    uv<-as.data.frame(t(uv))
+    regress_vals<-sapply(uv,function(x)mapFeature(x[1],x[2],6)%*%theta)
+    contdata<-as.data.frame(cbind(uv.exp,regress_vals))
+    names(contdata)=c("u","v","z")
+   
+    ggplot(contdata)+geom_contour(aes(u,v,z = contdata$z),breaks=c(0))+
+  geom_point(data=X,aes(x=X[,2],y=X[,3],colour=y,fill=y,shape=y),size=3)+
+  xlab("Exam1")+ylab("Exam2") +
+  scale_shape_manual(values=c(21,3))
+
+    
+  }
+}
+
+
+plotDecisionBoundary(theta,design_matrix,targety)
+```
+
+**1.2.4. Evaluating logistic regression **                        
+After learning the parameters, you can use the established logistic regression model to predict whether a particular student will be admitted. For a student with an Exam 1 score of 45 and an Exam 2 score of 85, you should expect to see an admission probability of 0.776. This can be done by the sigmoid function:
+```{r}
+scores<-c(1,45,85)
+pred<-sigmoid(t(scores)%*%theta)
+cat('For a student with scores 45 and 85, we predict an admission ',
+         'probability of \n', pred,'\n')
+```
+
+Another way to evaluate the quality of the parameter is to see how well the learned model can predict our training set. To do this, a predict function was implemented to predict whether a student will be admitted based on the student's scores. By using this function, We can predict the admission for all the students in the training set, and compare the predicted results to the admission results in the training set. We can then evaluate the accuracy of the prediction. The follwoing chunk contains the R code for the predict fucntion and the accuracy evaluation:
+
+```{r}
+prediction<-function(X,theta){
+  as.integer(sigmoid(X%*%theta)>=0.5)
+}
+
+accuracy<-sum(prediction(design_matrix,theta)==targety)/length(targety)
+cat('Train Accuracy: ',accuracy*100,'\n')
+```
+
+**2. Regularized logistic regression **         
+
+This part of the project is to implement regularized logistic regression to predict whether microchips from a fabrication plant passes quality assurance (QA) based on two tests. The training set consists of the history data of the two tests on past microchips, and whether these microchips have passed the QA. Based on these data, we are going to build a logistic regression model. The data was ploted using the plotData function. 
+
+**2.1. Visualizing the data **         
+Simialr to the previous data analysis, We first read and visualize the data.
+
+```{r}
+chips<-read.csv("ex2data2.txt",header=FALSE)
+names(chips)<-c("chip_test_1","chip_test_2","accepted")
+
+plotData(chips[,1:2],as.factor(chips$accepted))
+```
+
+This figure shows that the dataset can not be seprated by a straight-line through the plot. Therefore, a linear logistic regression model will not perform well on this dataset. 
+
+**2.2. Feature mapping **         
+One way to fit the data better, especially for the non-linear separable problem is to introduce more features to the model. In the following mapFeature function, we will map the features into all ploynomial terms of $x_1$ and $x_2$ up to the sixth power. After this feature mapping, we have totally 28 features for each observation. A logistic regression classifier trained on this higher-dimension feature space will have a more complex, non-linear decision boundary when drawn in the 2-dimensional plot. It should be noted that such polynomial feature mapping can be easily done in R using the plym() function, as demonstrated in the following code. Comparison of the poly_matrix and design_matrix obtained using mapFeature function and the R's polym() function showed that the matrices generated by both methods are the same. 
+
+```{r}
+mapFeature<-function(X1,X2,degree){
+  
+  out<-rep(1,length(X1))
+  
+  for (i in seq(degree)){
+    for (j in seq(from=0,to=i)){
+      temp<-X1^(i-j)*X2^j
+      out<-cbind(out,temp)
+    }
+  }
+  
+  return(out)
+  
+}
+
+poly_matrix<-mapFeature(chips$chip_test_1,chips$chip_test_2,6)
+
+design_matrix<-model.matrix(chips$accepted ~ polym(chips$chip_test_1,chips$chip_test_2,degree=6,raw=TRUE))
+```
+One problem of the classifier built on high dimensional feature space is the overfitting. We will implement regularized logistic regression to fit the data and see how regularization can help to alleviate the overfitting problem.
+
+**2.3. Cost function and gradient **          
+Now, we will implement the functions to compute the cost and grdient for regularized logistic regression. The regularized cost function in logistic regression is:
+
+$$J(\theta) = \frac{1}{m}\sum_{i=1}^m\left[-y^{(i)}log(h_\theta(x^{(i)}))-(1-y^{(i)})log(1-h_\theta(x^{(i)}))\right]+\frac{\lambda}{2m}\sum_{j=1}^n\theta_j^2$$
+We can easily convert this cost function to matrix format as:
+
+$$ J \left( \theta \right) = -\frac{1}{m} \left[ Y^Tlog\left(sigmoid \left(X \theta \right)\right) +(1-Y)^Tlog(1-sigmoid(X\theta))  \right]+ \frac{\lambda}{2m}\theta_{\left[1:n\right]}^T\theta_{\left[1:n\right]}  ~~~~~~~~~~~Eq\left( 7 \right) $$ 
+
+It is important to remember that $\theta_0$ should not be regularized. Therefore, in Eq(7), only $\theta_{\left[1:n\right]}$ was included, exclusive of $\theta_0$.
+
+The gradient of the regularized cost function can be obtained very similar to the unregularized version as:
+
+$$\frac{\partial J\left(\theta\right)}{\partial\theta} = \frac{1}{m} (X\theta-Y)^TX + \frac{\lambda}{m}\theta_{\left[1:n\right]}  ~~~~~~~~~~~Eq\left( 8 \right) $$
+Eqs(7) and (8) were used in the R code to implement the cost and gradient functions for the regularized logistic regression model, as shown in the following chunk:
+
+```{r}
+fR_reg<-function(theta,X,y,lambda){
+  m<-length(y)
+  cost<- -1*(1/m)*(t(y)%*%log(sigmoid(X%*%theta))+t(1-y)%*%log(1-sigmoid(X%*%theta)))+
+            lambda/(2*m)*t(theta[-1])%*%theta[-1]
+               return(cost[1,1])
+}
+
+gR_reg<-function(theta,X,y,lambda){
+  m<-length(y)
+  grad<--(1/m)*(t(y-sigmoid(X%*%theta))%*%X)
+  grad[-1]<- grad[-1]+lambda/m*grad[-1]
+  return(t(grad))
+}
+
+theta0<-rep(0,times=dim(poly_matrix)[2])
+targety<-chips$accepted
+cost_zero_lambda<-fR_reg(theta0,poly_matrix,targety,0)
+cat("The cost calculated by the regulated cost function at lambda = 0 is ",cost_zero_lambda,"\n")
+
+```
+The result should be around 0.693.
+
+**2.3.1. Learning parameters using optimx package **          
+Similar to the previous parts, we use ucminf of ucminf package and the BFGS-B method of the optimx package to find the optimum theta for the regularized logistic regression model:
+```{r}
+opt_results_ucminf<-ucminf(par=theta0,fn=fR_reg,gr=gR_reg,X=poly_matrix,y=targety,lambda=1)
+theta_ucminf<-opt_results_ucminf$par
+
+```
+In addition to ucminf function, we also tested the BFGS-B method of the optimx package, as shown in the following chunk:
+
+```{r}
+opt_results_optim<-optim(par=theta0,fn=fR_reg,gr=gR_reg,method='L-BFGS-B',X=poly_matrix,y=targety,lambda=1)
+theta_optim<-opt_results_optim$par
+```
+
+**2.4. Plotting the decision boundary **          
+The boundary found by the regularized logtistic regression was visualized using the plotDecisionBounday function.The following R chunk plotted the boundary found by ucminf function with the $\lambda$ value set at 1: 
+```{r}
+plotDecisionBoundary(theta_ucminf,poly_matrix,targety)
+
+```
+
+and the following plot showed the the boundary generated by optimx package using BFGS-B method  with the $\lambda$ value set at 1:
+```{r}
+plotDecisionBoundary(theta_optim,poly_matrix,targety)
+```
+
+We can see that the BFGS-B method of optimx package provided better results. We also evaluated the accuracy of the prediction on training dataset using the BFGS-B method, as shown below:
+```{r}
+prediction<-function(X,theta){
+  as.integer(sigmoid(X%*%theta)>=0.5)
+}
+
+accuracy<-sum(prediction(poly_matrix,theta_optim)==targety)/length(targety)
+cat('Train Accuracy: ',accuracy*100,'\n')
+```
+Results showed that  we can get an accuracy of ~83% on the training dataset for this non-linearly separable problem,. 
+
+**2.5 Effects of $\lambda$ on the results of the regularized logistic regression **       
+This part of the project tried different regularization parameters for the training dataset to understand how regularization prevents over-fitting. Since BFGS-B method provided better results in the previous sections, all the results in this section were based on the optimum theta obtained by BFGS-B method. In the first trial, we used a $\lambda$ value of 0, which bascially means no regulation. The resutled boundary was plotted as below:  
+
+```{r}
+opt_results_0<-optim(par=theta0,fn=fR_reg,gr=gR_reg,method='L-BFGS-B',X=poly_matrix,y=targety,lambda=0)
+theta_0<-opt_results_0$par
+plotDecisionBoundary(theta_0,poly_matrix,targety)
+```
+From this plot, the boudary can perfectly classify all the data points in the training dataset, but such a complicated boundary usually means over-fitting. Next, we tried a much bigger $\lambda$ value of 70, and draw the boundary obtained as below:
+
+```{r}
+opt_results_70<-optim(par=theta0,fn=fR_reg,gr=gR_reg,method='L-BFGS-B',X=poly_matrix,y=targety,lambda=70)
+theta_70<-opt_results_70$par
+plotDecisionBoundary(theta_70,poly_matrix,targety)
+```
+From this plot, the boundary is much simpler, but with a lot of misclassified data points.Therefore, an intermediate value of $\lambda$, such as 1 should provide a good balance between over-fitting and the accuracy of fitting, as demonstrated by the results obtained by $\lambda=1$ in the previous sections. 
+
+
+
+
+
