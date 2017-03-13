@@ -30,7 +30,7 @@ In this section, we will use logistic regression and neural networks to recogniz
 ![sample digit images](ex3.jpg)
 
 **1.1 Dataset **          
-The data set in ex3data1X.txt and ex3dataY.txt contain 5000 training examples of handwritten digits. Now let's first read the data. 
+The data set in ex3data1X.txt and ex3dataY.txt contains 5000 training examples of handwritten digits. Now let's first read the data. 
 ```{r}
 image_X<-read.csv('ex3data1X.txt',header=FALSE)
 targety<-read.csv('ex3dataY.txt',header=FALSE)
@@ -40,7 +40,7 @@ cat("The dimension of targety is ",dim(targety),"\n")
 ```
 In the dataset, each training exmple is a 20 pixel by 20 pixel grayscale image of the digit. Each pixel is represented by a floating point number indicating the grayscale intensity at that location. The 20 by 20 grid of pixels have been converted to a 400-dimensional vector in the input file of ex3data1X.txt. 
 
-Here we see that the image_X dataframe has 5000 rows, corresponding to the 5000 observations in the training examples. In addition, each row of image_X contains 400 columns, corresponding to the 400-dimension pixel vector for each observation. The ith row in image_X dataframe corresponds to the pixel vector of the ith observation. Finally, targety is a vector consisting of 5000 elements. The ith element defines what number the image of the ith observation contains. Notice that in this vector, digit 0s in training examples were mapped to the value of 10 for the convenience of programming, meaning that if the image of an observation corresponds to 0, its value in the targety vector was set as 10. For all the other digits from 1 to 9, the digit images and the corresponding values in targety vector were consistent.
+Here we see that the image_X dataframe has 5000 rows, corresponding to the 5000 observations in the training examples. In addition, each row of image_X contains 400 columns, corresponding to the 400-dimension pixel vector for each observation. The ith row in image_X dataframe corresponds to the pixel vector of the ith observation. Finally, targety is a vector consisting of 5000 elements. The ith element defines what digit number the image of the ith observation contains. Notice that in this vector, digit 0s in training examples were mapped to the value of 10 for the convenience of programming, meaning that if the image of an observation corresponded to 0, its value in the targety vector was set as 10. For all the other digits from 1 to 9, the digit images and the corresponding values in targety vector were consistent.
 
 The task of this project is to correctly predict the number given the image vector of that number in the training set. We will first try the one-vs-all logistic regression model. To build the logistic regression model, we first build the design matrix by adding the intercept column to the image_X dataframe.
 
@@ -50,9 +50,9 @@ feature_number<-dim(image_X)[2]+1
 design_matrix<-as.matrix(cbind(v0=rep(1,times=dim(image_X)[1]),image_X))
 ```
 **1.2 Vectorizing Logistic Regression **          
-In the one-vs-all logistic regression model, we will need to tain multiple logistic regression classifiers. Vectorizing the code is important to make sure the training is effiecient.
+In the one-vs-all logistic regression model, we will need to train multiple logistic regression classifiers. Vectorizing the code is important to make sure the training is effiecient.
 
-Vectorized logistic regression algorithm and the equations for computing cost and gradient for regularized logistic regression have been dervied in the logistic regression project. Please refer to LogisticRegression.nb.html markdown notebook for the details of the derivation. In this project, I just listed the equations for regularized logistic regression as follows:
+Vectorized logistic regression algorithm and equations for computing cost and gradient for regularized logistic regression have been dervied in the logistic regression project. Please refer to LogisticRegression.nb.html markdown notebook for the details of the derivation. In this project, I just listed the equations for regularized logistic regression as follows:
 
 $$ J \left( \theta \right) = -\frac{1}{m} \left[ Y^Tlog\left(sigmoid \left(X \theta \right)\right) +(1-Y)^Tlog(1-sigmoid(X\theta))  \right]+ \frac{\lambda}{2m}\theta_{\left[1:n\right]}^T\theta_{\left[1:n\right]}  ~~~~~~~~~~~Eq(1)$$ 
 
@@ -87,7 +87,7 @@ thetas<-matrix(rep(0,times=number_labels*feature_number),nrow=number_labels)
 
 Next, we will train the multi-class model by training multiple classifiers. This was done by a for loop. When index i changed from 1 to 10, the 10 classifiers were trained sequentially, and the learned theta values for each classifier were stored in the corresponding row of thetas matrix.
 
-Furthermore, Rcgmin function in Rcgmin package was used to find the optimum theta. This function uses the conjugated gradient minimization algorithm for the efficient search of the optimum values. In the following R code, we use an intial theta vector with all its elements set as 0 for all the classifiers.
+Furthermore, Rcgmin function in Rcgmin package was used to find the optimum theta corresponding to the minimum cost. This function uses the conjugated gradient minimization algorithm for the efficient search of the optimum values. In the following R code, we used an initial theta vector with all its elements setting at 0 for all the classifiers.
 
 Finally, it is important to note that each classifier acts as a "binary" classifer. For example, classifier i only cares if an observation belongs to class i or not. Therefore, when training classifier i, we only need to tell the classifier whether an observation belongs to class i, as shown in the following code. 
 
@@ -112,13 +112,17 @@ mean(pred_results==targety)*100
 The accuracy of the multi-class logistic regression model is ~ 96% for the digit number recognition. 
 
 **2. Neural Networks **          
- This part of the project implemented a neural network to recognize handwritten digits using the same training dataset as before. For this project, parameters from a neural network that had been trained were used to predict which numbers the images contained for training examples. The goal is to implement the feedforward propagation algorithm to use the weights obtained from a trained neural network model for prediction. In the next project, the backpropagation algorithm for learning the neural network parameters will be implemented.
+ This part of the project implemented a neural network to recognize handwritten digits using the same training dataset as before. For this project, network weight parameters from a neural network that had been trained were used to predict which digit numbers the images contained for training examples. The goal is to implement the feedforward propagation algorithm to use the weights obtained from a trained neural network model for prediction. In the next project, the backpropagation algorithm for learning the neural network parameters will be implemented.
 
 If you understand the logistic regression, then the feedforwad propagation is just a combination of multiple logistic regression models. Let's start from a simple case where there are four input nodes and one output node, as shown in the following figure:
 ![one middle node](onenode.PNG)
-In this figure, the output node, $a_1=g(\theta_1^TX)$ where g is the sigmoid function. Now if we add another output node, $a_2$, then $a_2=g(\theta_2^TX)$. Finally, if we combine all the output nodes into a vector, a, then the vector can be computed as $a=g(\Theta X)$, where each row of the $\Theta$ matrix contains the theta vector for the corresponding output node (remember that Sigmoid function can be directly applied to vectors and matrices). The two output node case is shown in the following figure: ![two middle nodes](twonodes.PNG) 
- 
-The neural network used in this project is a 3 layer network, including an input layer, a hidden layer and an output layer. The same input data used in the previous multi-class logistic regression model was used in this section. The input layer of the neural network has 401 nodes, corresponding to the 401 features in the design matrix of image_X. The middle layer was designed to have 25 nodes, and the output layer has 10 nodes, corresponding to the 10 different output classes. 
+In this figure, the output node, $a_1=g(\theta_1^TX)$ where g is the sigmoid function. Now if we add another output node, $a_2$, then $a_2=g(\theta_2^TX)$. Finally, if we combine the two output nodes $a_1$ and $a_2$ into a vector, a, then the vector can be computed as $a=g(\theta X)$, where $\theta$ is a matrix consisting of $\theta_1^T$ and $\theta_2^T$ as its two rows. The two output node case is shown in the following figure: ![two middle nodes](twonodes.PNG) 
+
+According to this discussion, dimension of the parameter matrix $\theta$ should be consistent to the numbers of nodes in the adjacent layers involved in the transformation. The number of rows of $\theta$ matrix equals the number of output nodes (excluding the bias node) of the transformation, while the number of the columns of $\theta$ matrix equals the number of input nodes including the bias node of the tranformation.
+
+The following figure showed a 3 layer nerual network. From this figure, we can see how the middle and output layer nodes are computed by the feedforward algorithm using logistic regression. In addition, we can check the dimensions of the two parameter matrices, $\theta^{(1)}$ and $\theta^{(2)}$. $\theta^{(1)}$ is the paramter matrix corresponding to the transformation between the input and middle layers, which are the first and second layers of this network, respectively. Therefore, the number of the input nodes including the bias node of this transformation is 4, namely, $x_0, x_1, x_2,$ and $x_3$. The number of the output nodes, exclusive of the bias node of this transformation is 2, namely, $Z_1$ and $Z_2$. Therefore, the dimension of matrix $\theta^{(1)}$ is 2 by 4. Similarly, matrix $\theta^{(2)}$ corresponds to the transformation between middle and output layers, which are the 2nd and 3rd layers of the network, respectively. The number of input nodes including the bias node of this tansformation ($Z_0,Z_1, Z_2$) is 3, and the number of the output nodes of this transformation ($a_0, a_1$ ) is 2. Therefore the dimension of $\theta^{(2)}$ is 2 by 3.
+![three layer neural networks](threelayers.PNG)
+The neural network used in this project is a 3 layer network, including an input layer, a middle layer and an output layer. The same input data used in the previous multi-class logistic regression model was used in this section. The input layer of the neural network including the bias node has 401 nodes. The middle layer was designed to have 25 nodes, and the output layer has 10 nodes, corresponding to the 10 different output classes. 
 
 Now, let's read the theta1 and theta2 data, which were obtained by training the neural network.
 ```{r}
@@ -128,9 +132,11 @@ theta2<-as.matrix(read.csv("ex3dataTheta2.txt",header=FALSE))
 cat("The dimension of theta1 is: ",dim(theta1),"\n")
 cat("The dimension of theta2 is: ",dim(theta2),"\n")
 ```
-We can see that the dimension of theta1 is 25 by 401. As mentioned previously, the number of rows of the $\Theta$ matrix should be the number of output nodes in the transformation. Since Theta1 is the $\Theta$ matrix for the transformation from the input layer to middle layer, the number of rows of theta1 should be the number of the nodes in middle layer, which is 25. In addition, since Theta2 is the $\Theta$ matrix from the trasformation from middle layer to the output layer, the dimension of theta2 is 10 by 26, corresponding to the number of middle layer nodes (25 plus the biased node) and the 10 output layer nodes, respectively.
+We can see that the dimension of theta1 is 25 by 401. As mentioned previously, the number of rows of the parameter matrix $\theta$ should be the number of output nodes of the transformation. Since theta1 is for the transformation from the input layer to middle layer, the number of rows of theta1 should be the number of nodes in middle layer excluding the bias node, which is 25. In addition, the number of columns of this matrix should equal to the number of nodes  in the input layer, including bias node, which is 401. Similarly, since theta2 is the parameter matrix for the trasformation from middle layer to the output layer, the dimension of theta2 is 10 by 26, corresponding to the 26 nodes in middle layer including the bias node and the 10 output layer nodes, respectively.
 
-For multiple layer neural networks, every node except those in the input layer can be computed using logistic regression. We can compute the third layer (output layer) nodes using logistic regression based on middle layer nodes, which, agian, are computed using logistic regression based on the input layer nodes. The computed values of the 10 nodes in the output layer for a training example are the probabilities of that example belonging to the corresponding classes. Class with the highest probability were then assigned to that example. The R code for the prediction is shown in the following section:
+As shown in the previous figure, feedforward algorithm calculates the value of every node except those in the input layer using the nodes in the previous layer and the corresponding parameter matrix. For example, nodes in the third layer (output layer) are computed based on middle layer nodes and the parameter matrix $\theta^{(2)}$. Nodes in the middle layer are computed using nodes in the input layer and the parameter matrix $\theta^{(1)}$. 
+
+After applying the feedforward algorithm, values of the 10 nodes in output layer were computed for all the training examles. Values of the 10 nodes in the output layer for a training example were the probabilities of that example belonging to the corresponding classes. Class with the highest probability was then assigned to that example. The R code for the prediction is shown in the following R chunk:
 
 ```{r}
 predict<-function(t1,t2,X){
