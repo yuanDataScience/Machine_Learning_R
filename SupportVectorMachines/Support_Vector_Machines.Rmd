@@ -1,0 +1,739 @@
+---
+title: "Support Vector Machines"
+author: Yuan Huang
+output:
+  html_notebook: default
+  html_document: default
+  
+---
+
+### Introduction
+
+This project implemented support vector machine (SVM) using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The datasets used in this project were originally from Coursera Machine Learning class and were converted to txt files. In addition to the R code and the data, this markdown notebook also includes a review of SVM and the Sequential Minimal Optimization (SMO) algorithm, which was implemented in this project.  
+
+#### Function list: Functions implemented in this markdown notebook
+* svmTrain - SVM training Function that implements a simplified version of SMO algorithm 
+* svmPredict - SVM prediction function
+* plotData - Plot 2D data
+* visualizeBoundaryLinear - Plot linear boundary
+* visulaizeBoundary - Plot nonlinear boundary
+* linearKernel - Linear kernel for SVM
+* gaussianKernel - Gaussian kernel for SVM
+* dataset3Params - Parameters to use for Dataset 3          
+*getVocabList - Load vocabulary list
+*processEmail - Email preprocessing                    
+*emailFeatures - Feature extraction from emails
+
+First, let's load the R libraries for this project. The e1071 libray was used to compare the SVM implemented in this project with the SVM implemented in the e1071 R package. The package SnowballC was used to do the word stemming when preprocessing email for spam classification using SVM. Package readr was used to read sample email files from txt files directly. 
+```{r}
+#load the library
+library(ggplot2)
+library("e1071")
+library("SnowballC")
+library("readr")
+```
+
+**1. Support Vector Machines **                                     
+**1.1. A brief review of SVM **                 
+This section includes a brief review of SVM. I will start from the linear separable cases with the maximum margin classifier, and then discuss the soft margin classifier, and finally the Sequential Minimization Optimization (SMO) algorithm.
+
+**1.1.1. Maximum Margin Classifiers **                   
+Asumming that we have a training dataset that is linearly separable in the feature space, where the n features of an observation i are expressed as $x^{(i)}\in R^n$, and $t^{(i)}\in${1, -1} is the corresponding target variable that defines the class of the observation. For a linear separable dataset, we can define a function $$y(x) = w^tx+b$$ such that for all the observation i in training dataset, $y(x^{(i)}) > 0$ if $t{(i)} = 1$, and $y(x^{(i)}) < 0$ if $t{(i)} = -1$, so that $t^{(i)}y(x^{(i)}) > 0$ for all the observations in the dataset. 
+If we find such a function y(x), then the collection of all the $x\in R^n$ satisfying the equation $$w^tx+b=0$$ defines a decision boundary (also called the separating hyperplane) in the feature space that can correctly classify all the observations in the data sets. In addition, the distance between observation i represented by its feature vector $x^{(i)}$ and the decision boundary can be calculated as $$\frac{(t^{(i)}y(x^{(i)})}{||w||}=\frac{t^{(i)}\left(w^tx^{(i)}+b\right)}{||w||}$$
+For a given linear separable dataset, there are many such decision boundaries. In SVM, the decision boundary is chosen to be the one for which the smallest distance between this boundary and any of the observations in the dataset is the largest. The smallest distance between decision boundary and any of the samples is called margin, and such a classifier is called maximum margin classifier. 
+The following figure illustrates the concept of the maximum margin classifier:
+![maximum margin classifier](max_margin.png)
+Maximum margin classifier makes sure the maximum distance between the chosen decision boundary and the sample closest to it is obtained, which can be expressed as:
+$$ arg~max_{w,b} \left({\frac {1}{||w||}}min_i\left[t^{(i)}(w^Tx^{(i)}+b)\right]\right) ~~~~~~~~~~~Eq(1)$$
+If we rescale w and b, the distance between $x^{(n)}$ and the decision boundary, which is $\frac{t^{(n)}(w^tx^{(n)}+b)}{||w||}$, is unchanged. Therefore, by scaling w and b, we can define decision boundaries so that for observations colsest to the boundary  $min_i\left[t^{(i)}(w^tx^{(i)}+b)\right] = 1$. This has two consequences:          
+(1) For all the observations in the dataset, $$t^{(i)}(w^Tx^{(i)}+b)\geq 1$$.
+(2) Since we have already defined $min_i~\left[t^{(i)}(w^Tx^{(i)})+b\right] = 1$, to maximize Eq(1), we only need to maximize $\frac{1}{||w||}$, or equavalently, minimize $||w||^2=w^Tw$. Therfore, we convert the maximum margin calssification to the following optimization problem:
+$$arg_{w,b}~min\left(\frac{1}{2}w^tw\right)~~~~~~~subject~to~~~t^{(i)}\left(w^Tx^{(i)}+b\right)\geq 1$$  
+This is an optimization problem with a convex quadratic objective and linear constaints.The general Lagrangian is:
+$$L(w,b,a)= \frac{1}{2}  w^Tw-\sum_{i=1}^{N} a_i \left[t^{(i)} \left( w^T x^{(i)} + b \right)-1 \right] ~~~~~~~~~~~~~~~Eq(2)  $$
+where $a=a_1,a_2,...a_N$ are lagrange multipliers for each observation, and $a_i \geq0$. The dual objective is $\theta_D(w,b)=min_{w,b}~L(w,a,b)$. 
+We solve for w and b by setting the derivatives of L(w,b,a) with respect to w and b to 0, respectively.          
+First, we have $\frac{\partial L}{\partial w}=w-\sum_{i=1}^Na_nt^{(i)}x^{(i)}=0$, which leads to 
+$$w=\sum_{i=1}^Na_it^{(i)} x^{(i)}~~~~~~~~~~~~~Eq(3)$$
+and $\frac{\partial L}{\partial b}=-\sum_{i=1}^Na_it^{(i)}=0$, which leads to
+$$\sum_{i=1}^N a_it^{(i)}=0 ~~~~~~~~~~~~Eq(4)$$
+Eqs(3) can be written in matrix format as 
+$$w=\Psi^T(at)~~~~~~~~~~~~~Eq(5)$$
+where at is the vector consisting of $a_it^{(i)}$ as its i-th element, so $at = \left[a_1t^{(1)},a_2t^{(2)},...a_nt^{(n)}\right]$. $\Psi$ is the matrix where the ith row is the feature vector of the ith observation $x^{(i)}$.           
+Introducing Eq(4) to Eq(2), we have
+$$L(w,b,a)=\frac{1}{2}w^Tw-\sum_{i=1}^Na_it^{(i)}w^Tx^{(i)})-b\sum_{i=1}^Na_it^{(i)} +\sum_{i=1}^Na_i=\frac{1}{2}w^Tw-\sum_{i=1}^Na_it^{(i)}w^Tx^{(i)}+\sum_{i=1}^Na_i ~~~~~~~~~~~~~~~~~~Eq(6)$$
+Noticing that in the item $\sum_{i=1}^Na_it^{(i)}w^Tx^{(i)})$, $x^{(i)}$,$a_i$ and $t^{(i)}$ are all independent of $w^T$, we can rearrange this item to be 
+$$\sum_{i=1}^Na_it^{(i)}x^{(i)}w^T = w^T\sum_{i=1}^Na_it^{(i)}x^{(i)}=w^Tw$$
+Introducing this to Eq(6), we have
+$$L(w,b,a)=\frac{1}{2}w^Tw-w^Tw+\sum_{i=1}^Na_i =-\frac{1}{2}w^Tw+\sum_{i=1}^Na_i    ~~~~~~~~~~~~~~~~~~~~~~~~~Eq(7)$$
+Introducing Eq(5) to Eq(7), we have
+$$L(w,b,a)=-\frac{1}{2}(at)^T\Psi\Psi^T(at)+\sum_{i=1}^Na_i ~~~~~~~~~~~~~~~~~Eq(8)$$
+In Eq(8), element in ith row, jth column of the matrix $\Psi\Psi^T$ is the inner product of $x^{(i)}$ and $x^{(j)}$, expressed as $<x_i,x_j>=x_i^Tx_j$. In addition, $(at)^T\Psi\Psi^T(at)$ is a typical quadratic form, which equals to $$(at)^T\Psi\Psi^T(at)=\sum_{i,j=1}^N(at)_{(i)}(at)_{(j)}<x_i,x_j>=\sum_{i,j=1}^Na_it^{(i)}a_jt^{(j)}x_i^Tx_j $$
+Introducing this to Eq(8), and define $k(x_i,x_j)=x_i^Tx_j$, we have
+$$L(w,b,a)=-\frac{1}{2}\sum_{i,j=1}^Na_it^{(i)}a_jt^{(j)}k(x_i,x_j)+\sum_{i=1}^Na_i ~~~~~~~~~~~~~~~~~Eq(9)$$
+Therefore, for given dataset containing m observation with feature vectors $x^{(i)}$ and $t^{(i)}$ for the ith observation, we obtain the following dual optimization problem:
+$$max_a~~ W(a) = \sum_{i=1}^ma_i-\frac{1}{2}\sum_{i,j=1}^mt^{(i)}t^{(j)}a_ia_jk(x_i,x_j) ~~~~~~~~~~~~~~~~~Eq(10)$$
+The constraints are $a_i \geq 0$ for i=1,...m; $\sum_{i=1}^ma_iy^{(i)}=0$ and $1-\left[t^{(i)}((w^*)^Tx^{(i)}+b^*)\right] \leq 0$. In addition, according to KKT conditions, the optimum solution of $a_i^*, w^*$ satisfy $a_i^*\left[1-t^{(i)}((w^*)^Tx^{(i)}+b^*)\right] =0$. This is called the complementary slackness.            
+According to the complementary slackness, if an observation i having $1-(t^{(i)}((w^*)^Tx^{(i)}+b^*) < 0$, then $a_i = 0$. According to Eq(3), observations with $a_i =0$ will not contribute to the w, and therefore, can be ignored for the computation of w, and the prediction of new observations. Only those vectors having $(t^{(i)}((w^*)^Tx^{(i)}+b^*) =1$ are considered. These vectors are on the margin of the decision boundary, and are called support vetors. This is important since once the SVM model is trained, a significant portion of the training dataset observations can be discarded and only the support vectors retrained. The following figure illustrates the $a_i$ values for support vectors and other observations in the dataset.
+![a values for support vectors](max_margin_a.png)
+
+**1.1.2. Soft Margin Classifiers **   
+To make the algorithm work for non-linearly separable datsets as well as be less sensitive to outliers, the maximum margin classifier can be modifier using *l1* regularization as follows:
+$$arg_{w,b}~min\left(\frac{1}{2}w^tw\right)+C\sum_{i=1}^m\xi_i ~~~~~~~subject~to~~~t^{(i)}\left(w^Tx^{(i)}+b\right)\geq 1-\xi_i,~~and~~ C>0 ~~~~~~~~~~~~Eq(11)$$
+$\xi_i \geq 0$ is called the slack variable. Each training dataset observation i has a corresponding $\xi_i$. $\xi_i =0$ for all observations that $t^{(i)}\left(w^Tx^{(i)}+b\right) \geq 1$ and for observations i that $t^{(i)}\left(w^Tx^{(i)}+b\right) < 1$, $\xi_i=|t^{(n)}-t^{(i)}\left(w^Tx^{(i)}+b\right)|$. According to this definition, observations that are either on the margins, or way from the margins but are correctly classified will have $\xi_i=0$. Observations in the margin region have $\xi_i > 0$, and for these observations, there are three possibilities: (a).They are missclassified, then their $\xi_i > 1$; (b). They are on the decision boundary, then their $\xi_i=0$; (c). They are correctly classified, then their $0< \xi_i <1$.          
+
+The following figure illustrates the $\xi$ values in a soft margin classifier.
+![$\xi values for soft margin classifier](soft_margin.png)
+
+This is sometimes described as soft margin classifier that allows observations to be misclassified. C controls the trade off between slack variable penalty and the margin. When C value is small, the SVM will focus more on minizing $\frac{1}{2}w^Tw$ item, and tolerate misclassified observations more. When C value is very big, $C\rightarrow \infty$, the soft margin classifier will mimic the maximum margin classifier and SVM will try to classify all the observations correctly.       
+
+We can solve the optimum solution for soft margin classifier using the similar method used for maximum margin classifier. The Lagrangian for Eq(11) is:
+$$L(w,b,a)=\frac{1}{2}w^Tw+C\sum_{i=1}^N\xi_i -\sum_{i=1}^{N} a_i \left[t^{(i)} \left( w^T x^{(i)} + b \right)-1+\xi_i \right] -\sum_{i=1}^N\mu_i\xi_i ~~~~~~~Eq(12)$$
+subject to the following constraints:             
+$a_i \geq0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Lagrange~multiplier~constraint$                  
+$\mu_i\geq0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Lagrange~multiplier~constraint$             
+$t^{(i)} \left( w^T x^{(i)} + b \right)-1+\xi_i  \geq0 ~~~~~~~~~~Soft~Margin~classifier~Constraint$                 
+$a_i\left[t^{(i)} \left( w^T x^{(i)} + b \right)-1+\xi_i \right] =0 ~~~~ Complementary~slackness$            
+$\xi_i\geq0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Lagrange~multiplier~constraint$                 
+$\mu_i\xi_i=0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Complementary~slackness$               
+
+In the next step, based on the dual objective, we find the w,b, and $\xi_i$ that minimize the L(w,b,a) by setting the derivatives of L(w,a,b) versus w, $\xi_i$, and b to 0, and consider all the lagrangian multipliers as constants, we have $\frac{\partial L}{\partial w}=w-\sum_{i=1}^Na_it^{(i)}x^{(i)}=0$, which leads to:
+$$w=\sum_{n=1}^Na_it^{(i)} x^{(i)}$$
+This is the same as Eq(3) for maximum margin case.
+In addition, $\frac{\partial L}{\partial b}=-\sum_{i=1}^Na_it^{(i)}=0$, which leads to
+$$\sum_{i=1}^N a_it^{(i)}=0 $$, which is the same as Eq(4) for the maximum margin case, too.          
+Next, $\frac{\partial L}{\partial \xi_i}=C-a_i-\mu_i=0$, which leads to:
+$$a_i=C-\mu_i ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Eq(13)$$
+Introducing these results to Eq(12), we get the dual optimization problem as:
+$$max_a~~ W(a) = \sum_{i=1}^ma_i-\frac{1}{2}\sum_{i,j=1}^mt^{(i)}t^{(j)}a_ia_jk(x_i,x_j) ~~~~~~~~~~~~~~~~~Eq(14)$$
+Eq(14) has the same format as Eq(10), but with the different constraints. According to Eq(13), $a_i=C-\mu_i$ where $\mu_i \geq 0$, so $a_i \leq C$. Therefore, we have the constaint of 
+$0 \leq a_i \leq C$ and $\sum_{i=1}^Na_it^{(i)}=0$.           
+The interpretation of the soft margin classifiers:
+(1). According to Eq(3), The same as in maximum margin classifiers, observations with $a_i =0$ will not contribute to w and the prediction of new observations. Therefore, only observations with $a_i > 0$ are support vectors.                
+(2). According to the complementary slackness, $a_i\left[t^{(i)} \left( w^T x^{(i)} + b \right)-1+\xi_i \right] =0$. Therefore, for support vectors, since $a_i>0$, $t^{(i)} \left( w^T x^{(i)} + b \right)-1+\xi_i =0$.                  
+(3). For support vectors with $0<a_i<C$, according to Eq(13), $\mu_i>0$, since $\mu_i\xi_i=0$, $\xi_i=0$. Therefore, these observations are on margins.
+(4). For support vectors with $a_i=C$, according to Eq(13), $\mu_i=0$, since $\mu_i\xi_i=0$,then it is possible that (a).$\xi_i>0$, meaning that these points are in the region between the two margins. They can be correctly classified, missclassified or on the decision boundary. (b). $\xi_i=0$. These observations are on margin.
+The following figure illustrates the possible $a_i$ and $\xi_i$ values for different observations in soft margin classifiers.
+![soft_margin_values](soft_margin_a.png)
+
+**1.1.3 Sequential Minimal Optimization (SMO) **          
+**1.1.3.1. Optimization of $a_1$ and $a_2$ **          
+In this project, SMO was used to solve the dual optimization problem defined in Eq(14). The basic idea of SMO is to optimize only two $a_i$ values each time to maximize the objective function . The algorithm implemented in this project is a simple version of SMO. The algorithm simply iterates all the $a_i, i=1,2,....m$. If a $a_i$ is found not complying to the constraints of Eq(14), then another $a_j$ is randomly selected from the remaining m-1 a's and $a_i$ and $a_j$ are jointly optimized. This process continues until none of the $a_i$ values are changed after a few iterations over all the $a_i$'s.           
+Let's start the discussion of SMO algorithm from Eq(4), which is valid for both maximum and soft margin classifier, $\sum_{i=1}^m a_it^{(i)}=0$. Accordng to this equation, if we only focuse on two $a_i$, namely, $a_1$ and $a_2$, while holding all the other $a_i$ values constant, then the sum of $a_1t^{(1)}+a_2t^{(2)}$ is:
+$$a_1t^{(1)} + a_2t^{(2)} =-\sum_{i=3}^ma_it^{(i)}=constant ~~~~Eq(15)$$.
+This is because all the values of $a_i$ and $t^{(i)}$ for $i\geq3$ are fixed when optimizing $a_1$ and $a_2$. After $a_1$ and $a_2$ are optimized, another two $a_i$s are selected for the optimization. This process continues until all the $a_i$ values are tested to be converged after a certain number of passes.
+
+If we multiply both sides of Eq(15) by $t^{(1)}$, we get 
+$$a_1+t^{(1)}t^{(2)} a_2=a_1+sa_2=\gamma   ~~~~~~~~~~~~~~~~~Eq(16)$$
+where s is 1 if $t^{(1)}=t^{(2)}$ or -1 otherwise, and $\gamma$ is a constant. 
+
+if s=1, then $a_1+a_2 =\gamma$, and $a_2=\gamma-a_1$, considering that $a_1 \leq C$, and $a_2 \geq 0$, the lower boundary of $a_2$ is:
+max$(\gamma-C,0)$ = max$(a_1+a_2-C,0)$.
+
+Similarly, since $a_1 \geq0$ and $a_2\leq C$, according to Eq(16), the upper boundary of $a_2$ is min$(\gamma,C)$=min$(a_1+a_2,C)$
+
+Using the same logic, we can obtain the upper and lower boundaries of $a_2$ as min$(C,C+a_2-a_1)$ and max$(0,a_2-a_1)$, respectively.     
+By extracting all the items related to $a_1$ and $a_2$, we can rearrange the dual objective W(a) in Eq(14) to the following equation:
+$$W(a) =a_1+a_2+\sum_{i=3}^ma_i -\frac{1}{2}\sum_{i,j=3}^ma_ia_jt^{(i)}t^{(j)}k(x_i,x_j) -\sum_{i=3}^ma_1t^{(1)}a_it^{(i)}k(x_1,x_i) -\frac{1}{2}a_1^2k(x_1,x_1)-\sum_{i=3}^ma_2t^{(2)}a_it^{(i)}k(x_2,x_i)-\frac{1}{2}a_2^2k(x_2,x_2)-a_1a_2t^{(1)}t^{(2)}k(x_1,x_2) $$
+Realizing that the third and fourth items only involve $a_i$ and $t^{(i)}$ for $i \geq 3$, which are constants, and $a_1=\gamma -sa_2$, we can rearrange this equation to:
+$$W(a)=\frac {1}{2}a_2^2\left(2k_{12}-k_{22}-k_{11} \right)+a_2(1-s+t^{(2)}v_1+s\gamma k_{11} - t^{(2)}v_2-\gamma sk_{12})+const ~~~~~Eq(17) $$
+In Eq(17), $k_{11}=k(x_1,x_1)$,$k_{12}=k(x_1,x_2)$, $k_{22}=k(x_2,x_2)$ and $v_1=\sum_{i=3}^ma_iy_ik_{1i}$ and $v_2=\sum_{i=3}^ma_iy_ik_{2i}$, respectively.
+then $$\frac{\partial W(a)}{\partial a_2}=a_2\left(2k_{12}-k_{22}-k_{11} \right)+\gamma s(k_{11}-k_{12})+t^{(2)}(v_1-v_2)+1-s=0  ~~~~~~~~~~Eq(18) $$
+
+It should be noted that except for the first item, all the other items in Eq(18) are constants independent of variable $a_2$. Values of these constant items can be computed using the current values of $a_1$, $a_2$, s, and $\gamma$ (Remember that $a_1^{curr}+sa_2^{curr}=\gamma$). Furthermore, if we understand that $$\sum_{i=1}^ma_it^{(i),(curr)}k(x_i,x_j)+b=P_j^{(curr)}$$, where $P_j^{(curr)}$ is the predicted value for observation corresponding to $a_j$ using the current values of $a_i^{(curr)}, i\neq j$, it is straigthforward to notice that $$v_1 = P_1^{(curr)}-b-a_1^{(curr)}t^{(1)}k_{11}-a_2^{(curr)}t^{(2)}k_{12}$$
+and $$v_2 = P_2^{(curr)}-b-a_1^{(curr)}t^{(1)}k_{12}-a_2^{(curr)}t^{(2)}k_{22}$$. Therefore, $$t^{(2)}\left(v_1-v_2\right)=t^{(2)} \left(P_1^{(curr)}-P_2^{(curr)}\right)-sa_1^{(curr)}(k_{11}-k_{12})-a_2^{(curr)}(k_{12}-k_{22}) ~~~~~~~~~~~~~~~Eq(19)$$
+Now, let's look the item$\gamma s(k_{11}-k_{12})$ in Eq(18),
+$$\gamma s(k_{11}-k_{12})=(sa_1^{(curr)}+a_2^{(curr)})(k_{11}-k_{12})=sa_1^{(curr)}(k_{11}-k_{12})-a_2^{(curr)}(k_{12}-k_{11}) ~~~~~~~~~~~~~~~~~~~Eq(20)$$
+Introducing Eqs(19) and (20) to Eq(18), we have:
+$$a_2(2k_{12}-k_{22}-k_{11})-a_2^{(curr)}(2k_{12}-k_{22}-k_{11})+t^{(2)}(P_1-P_2)+1-s=0$$
+Consider that $1=t^{(2)}t^{(2)}$ and $s=t^{(1)}t^{(2)}$, we can convert this equation to:
+
+$$a_2(2k_{12}-k_{22}-k_{11})-a_2^{(curr)}(2k_{12}-k_{22}-k_{11})+t^{(2)}\left[(t^{(1)}-P_1)-(P_2 -t^{(2)})\right]=a_2\eta -a_2^{(curr)}\eta+t^{(2)}(E_1-E_2)= 0$$
+where $\eta=2k_{12}-k_{22}-k_{11}$ and $E_i=t^{(i)}-P_i$. Solving this equation, we have
+$$a_2^{(*)} =a_2^{(curr)}-\frac{t^{(2)}(E_1-E_2)}{\eta} ~~~~~~~~~~~~~~~~~~~~~~~~~~~Eq(21)$$
+Eq(21) provides the fundamental equations for the SMO algorithm implemented in this project. With Eq(21), and realizing the constraint that $a_2$ value must be between the lower and upper boundaries (L and H, respectively), depending on s value, we set $a_2^{(new)}=H~~ if~~ a_2^{(*)} \geq H$, $a_2^{(new)}=L~~ if ~~a_2^{(*)} \leq L$ and $a_2^{(new)}=a_2^{(*)}~~ if~~ a_2^{(*)} \geq H$.
+After setting the value of $a_2^{(new)}$, we can easily set value of $a_1^{(new)}$ using the constraint that 
+$$a_1^{(new)}+sa_2^{(new)}=a_1^{(current)}+sa_2^{(current)}=\gamma$$.
+Again, $s=t^{(1)}t^{(2)}$.
+
+**1.1.3.1. Computing the b threshold **               
+The b threshold can be computed as the following:
+If after the optimization, $0 < a_1 <C$, then the observation corresponding to $a_1$ is on the margin. Therefore, $t^{(1)}P_1^{(new)}=1$, where $P_1^{(new)}$ is the predicted value for the observation corresponding to $a_1$ using $a_1^{(new)}$ and $a_2^{(new)}$, while keeping all the other $a_i$ for $i \geq 3$ as the current values. namely, we can wirte this as:
+$$t^{(1)}P_1^{(new)}=t^{(1)}\left[\sum_{i=3}^mt^{(i)}a_i^{(curr)} k(x_i,x_1)+t^{(1)}a_1^{(new)} +t^{(2)}a_2^{(new)}+b_1^{(new)} \right]=t^{(1)}\left[\sum_{i=1}^mt^{(i)}a_i^{(curr)} k(x_i,x_1)+t^{(1)}a_1^{(new)}k(x_1,x_1) +t^{(2)}a_2^{(new)}k(x_2,x_1) -t^{(1)}a_1^{(curr)}k(x_1,x_1) -t^{(2)}a_2^{(curr)}k(x_2,x_1) +b_1^{(new)}\right]  =1$$
+As we know, $\sum_{i=1}^mt^{(i)}a_i^{(curr)} k(x_i,x_1)+b^{(curr)}=P_1^{(curr)}$, this equation can be converted as the following:
+$$t^{(1)}\left[P_1^{(curr)}-b^{(curr)}+t^{(1)}(a_1^{(new)}-a_1^{(curr)})k(x_1,x_1) +t^{(2)}(a_2^{(new)}-a_2^{(curr)})k(x_1,x_2)+b_1^{(new)}\right]=1 $$
+mulitplying $t^{(1)} on both sides, we get:
+$$\left[P_1^{(curr)}-b^{(curr)}+t^{(1)}(a_1^{(new)}-a_1^{(curr)})k(x_1,x_1) +t^{(2)}(a_2^{(new)}-a_2^{(curr)})k(x_1,x_2)+b_1^{(new)}\right]=t^{(1)} $$
+Since $P_1^{curr}-t^{(1)}=E_1$, we get:
+$$b_1^{(new)}=b^{(curr)}-E_1 -t^{(1)}(a_1^{(new)}-a_1^{(curr)})k(x_1,x_1) -t^{(2)}(a_2^{(new)}-a_2^{(curr)})k(x_1,x_2)  ~~~~~~Eq(22) $$
+Similarly, if $0<a_2^{(new)}<C$We can get 
+$$b_2^{(new)}=b^{(curr)}-E_2 -t^{(2)}(a_2^{(new)}-a_2^{(curr)})k(x_2,x_2) -t^{(1)}(a_1^{(new)}-a_1^{(curr)})k(x_1,x_2) ~~~~~~~~Eq(23) $$
+To summarize, we have the following cases:
+(1). If both $0<a_1<C$ and $0<a_2<C$, then $b_1^{(new)}=b_2^{(new)}$, and assign $b^{(new)}=b_1^{(new)}=b_2^{(new)}$. 
+(2). If only $0<a_1<C$ or $0<a_2<C$, then $b^{(new)}=b_1^{(new)}$, or $b^{(new)}=b_2^{(new)}$, respectively.
+(3). If both $a_1$ and $a_2$ are bounded to 0 or C, then $b=\frac{1}{2}(b_1^{(new)}+b_2^{(new)})$
+
+The following svmTrain function implemented a simplified version of SMO algorithm in R:
+The beginning of the code includes data convertion (converting y=0 to -1) and preparation of variables used for storage of $a_i$ and b values, lower and upper boundaries and kernel matrix. At the beginning of the algorithm, all these values are set to zero. The svmTrain function  also includes vectorized functions for computing linear kernel and gaussian kernel, as well as a general function for kernel computation without vectorization.
+
+Code for Optimization of $a_i$ values using SMO is included in the while loop. In the loop, an $a_i$ is first selected from the a's vector, and the follwoing two conditions are tested:          
+(1). $t^{(i)}E_i<-tol$ and $a_i<C$, where tol is a pre-set tolerance. We know that if $a_i<C$ then observation i must be on margins , however, $t^{(i)}E_i<0$ tells us that observation i is not on the margin. Therefore, we know $a_i$ viloate the KKT conditions, and needs to be optimized       
+(2).$t^{(i)}E_i>tol$ and $a_i>0$. We know that if $a_i>0$ then observation i must be a support vector, meaning that i must be either on the margin or in the margin region. However,  $t^{(i)}E_i>tol$ tells us that i is out of the margin region and therefore, is not a support vector. As a result, we know $a_i$ violates the KKT conditions, and needs to be optimized.             
+Once an $a_i$ is found, then the function finds another $a_j$ and applies Eqs(21-23) to optimize $a_i$ and $a_j$ and b values. If all the $a_i$ values are converged after a certain number of passes, which is set by maxpass arugument of the function, the optimization process is stopped, and the optimized results are returned.
+
+
+```{r}
+svmTrain<-function(dataX,datay,C,kernalFunction,tol=1e-3, max_passes=5,FUN=linearKernel,...){
+  
+  X<-as.matrix(dataX)
+  y<-datay[,1,drop=TRUE]
+  #get the number of observations and features
+  m<- dim(X)[1]
+  n<-dim(X)[2]
+  
+  #map 0 to -1 for y response
+  y[y==0]=-1
+  
+  #define variables
+  alphas<-rep(0,m)
+  b<-0
+  E<-rep(0,m)
+  passes <- 0
+  eta<-0
+  L<-0
+  H<-0
+  K<-matrix(rep(0,m^2),nrow=m)
+  
+  if(kernalFunction=="linearKernel"){
+    K<-X%*%t(X)
+  }
+  else if (kernalFunction=="gaussianKernel"){
+    X2<-apply(X^2,1,sum)
+    transmatrix<-matrix(1:1,nrow=dim(X)[1])
+    K<- -2*X%*%t(X)+transmatrix%*%t(X2)
+    K<-X2+K
+    gk<-FUN(1,0,...)
+    K<-gk^K
+  }
+  else{
+    for (i in seq(m)){
+      for (j in i:m){
+        K[i,j]=FUN(X[i,],X[j,],...)
+        K[j,i]=K[i,j]
+      }
+    }
+  }
+  
+  
+ # return(K)
+  while (passes < max_passes){
+    
+    num_changed_alpha=0
+    randnum<-runif(1)
+    for (i in seq(m)){
+      E[i]<- b+sum(alphas*y*K[,i])-y[i]  #b+sum term is the predicted yi
+      if ((y[i]*E[i] < (-1*tol) && alphas[i] < C) || (y[i]*E[i] > tol && alphas[i] > 0)){
+        j=ceiling(m*runif(1))
+        while(j==0||j==i){
+          
+          j=ceiling(m*runif(1))
+        }
+        E[j]<-b+sum(alphas*y*K[,j])-y[j]
+        
+        alpha_i_old<-alphas[i]
+        alpha_j_old<-alphas[j]
+        
+        if (y[i]==y[j]){
+          L<-max(0,alphas[j]+alphas[i]-C)
+          H<-min(C,alphas[j]+alphas[i])
+        }
+        else{
+          L<-max(0,alphas[j]-alphas[i])
+          H<-min(C,C+alphas[j]-alphas[i])
+        }
+        
+        if(H==L) next
+        
+        eta<- 2*K[i,j]-K[i,i]-K[j,j]
+        if(eta >= 0) next
+        
+        alphas[j]<-alphas[j]-(y[j]*(E[i]-E[j]))/eta
+        
+        alphas[j]<-min(H,alphas[j])
+        alphas[j]<-max(L,alphas[j])
+        
+        if(abs(alphas[j]-alpha_j_old) < tol){
+          alphas[j] <- alpha_j_old
+          next
+        }
+        
+        alphas[i]<-alphas[i]+y[i]*y[j]*(alpha_j_old-alphas[j])
+        
+        #compute b1 and b2
+        b1<-b-E[i]-y[i]*(alphas[i]-alpha_i_old)*K[i,i]-
+            y[j]*(alphas[j]-alpha_j_old)*K[i,j]
+        b2<-b-E[j]-y[i]*(alphas[i]-alpha_i_old)*K[i,j]-
+          y[j]*(alphas[j]-alpha_j_old)*K[j,j]
+        
+        if(0<alphas[i] && alphas[i]< C){
+          b=b1
+        }
+        else if(0<alphas[j] && alphas[j]< C){
+          b=b2
+        }
+        else{
+          b=(b1+b2)/2
+        }
+        
+        num_changed_alpha<-num_changed_alpha+1
+        
+      }
+
+    if (num_changed_alpha==0){
+      passes<-passes+1
+    }
+    else{
+      passes<-0
+    }
+  
+  }
+  
+  
+  }
+  
+  idx<-which(alphas>0)
+  model.X<-X[idx,]
+  model.y<-y[idx]
+  model.kernel=kernalFunction
+  model.kernelF=FUN
+  model.b<-b
+  model.alphas<-alphas[idx]
+  model.w<-t(X)%*%(alphas*y)
+  
+  rs<-list(idx=idx,X=model.X,y=model.y,kernelF=model.kernelF,
+           kernel=model.kernel,
+           b=model.b,alphas=model.alphas,w=model.w)
+  return(rs)
+}
+
+gaussianKernel<-function(X1,X2,sigma){
+  dif<-X1-X2
+  rs<-exp(-1/(2*sigma^2)*t(dif)%*%dif)
+  return(rs[1,1])
+}
+
+linearKernel<-function(X1,X2){
+  t(X1)%*%X2
+}
+
+```
+
+**1.2 Example Dataset 1 **        
+After a brief review of SVM, we will practice SVM for the calssification of data. First, we load a 2-dimensional, linear separable dataset. 
+```{r}
+X_data1<-read.csv("ex6data1X.txt",header=FALSE)
+y_data1<-read.csv("ex6data1y.txt",header=FALSE)
+```
+Next, we visualize the data using the plotData() function:
+```{r}
+plotData<-function(X,y){
+  
+  is_positve<-as.factor(y[,1])
+  
+  ggplot(X,aes(x=X[,1],y=X[,2],colour=is_positve,shape=is_positve,fill=is_positve))+
+    geom_point(size=5)+scale_shape_manual(values=c(21,3))+
+    scale_color_manual(values=c("yellow","black"))+xlab("X coordination")+ylab("y coordination")
+  }
+
+plotData(X_data1,y_data1)
+```
+
+It is apparent that the data are naturally separated by a gap, except one outliner on the far left at about (0.1,4.1). In this part of the project, the value of C will be ajusted to see how it affects the decision boundary and margins, especially in the presence of outliers. As discussed in section 1.1.2., parameter C controls how much the SVM tolerates assigning observations in the region between two margins, and the misclassification. A large C parameter results in huge penalty on assigning observations between the two margins, especially misclassification. SVM will try to classify all the examples correctly, and outside of the margins.
+
+The following R code runs the SVM training with C=1 using the svmTrain() function implemented in section 1.1.3.1. In addition, this part of the project implemented a function called visualizeBoundaryLinear_sim() to visualize the linear decision boundary generated by the svmTrain function, and the distribution of the training dataset, 
+```{r}
+
+visualizeBoundaryLinear_sim<-function(dX,dy,model){
+  tmpX<-as.matrix(dX)
+  beta<-model$w
+  beta0<-model$b
+  plotData(dX,dy)+geom_abline(slope=-beta[1]/beta[2],intercept=-beta0/beta[2],col="blue",size=1)+
+    geom_abline(linetype="dotted",slope=-beta[1]/beta[2],intercept=(-beta0-1)/beta[2])+
+    geom_abline(linetype="dotted",slope=-beta[1]/beta[2],intercept=(-beta0+1)/beta[2])
+  
+}
+c=1
+svml.fit1<-svmTrain(X_data1,y_data1,c,"linearKernel",max_passes=20,FUN=linearKernel)
+visualizeBoundaryLinear_sim(X_data1,y_data1,svml.fit1)
+```
+From this figure, when C=1, SVM misclassified the outlier in the far left with reasonable margins. Next, we try c=100.
+```{r}
+c=100
+svml.fit100<-svmTrain(X_data1,y_data1,100,"linearKernel",max_passes=20,FUN=linearKernel)
+visualizeBoundaryLinear_sim(X_data1,y_data1,svml.fit100)
+```
+
+Using C=100, first, we notice that the margins are narrower, indicating that SVM is less tolerate to data points in the margin region, and therefore, less data points are now in the margin region due to the bigger penalty applied to the $C\sum_{i=1}^m\xi_i$ item in Eq(11). In addition, the outlier in the far left is now closer to the decision boundary. By running the svmTrain functions several times, sometimes, the outlier was correctly classified, but sometimes not. It seems that the simplified version of the SMO algorithm does not converge to the global optimium.
+
+In the following R chunk, the effects of C values using e1071 package, which contains a fully implemented SVM. in this chuck, visualizeBoundaryLinear function was implemented to visualize the decision boundary found by the SVM. Notice that in the svm() function, we change C parameter by ajusted the "cost" argument. In addition, we need to pack feature data and label data into one dataframe for the svm function of e1071 package. Now let's first see the results when C=1 by setting cost to 1: 
+```{r}
+df_data1<-cbind(X_data1,(y_data1))
+names(df_data1)<-c("Xposition","yposition","ispositive")
+df_data1$ispositive<-as.factor(df_data1$ispositive)
+
+visualizeBoundaryLinear<-function(X,y,model){
+  tmpX<-as.matrix(X)
+  beta<-drop(t(model$coefs)%*%tmpX[model$index,])
+  beta0<-model$rho
+  plotData(X,y)+geom_abline(slope=-beta[1]/beta[2],intercept=beta0/beta[2],col="blue",size=1)+
+    geom_abline(linetype="dotted",slope=-beta[1]/beta[2],intercept=(beta0-1)/beta[2])+
+    geom_abline(linetype="dotted",slope=-beta[1]/beta[2],intercept=(beta0+1)/beta[2])
+  
+}
+svm.fit <- svm(ispositive~., data=df_data1, cost=1, kernel="linear",scale=FALSE)
+visualizeBoundaryLinear(X_data1,y_data1,svm.fit)
+```
+This figure shows that when C=1, the decision boundary obtained is similar to the one obtained by our own implemented svmTrain function.       
+Now let's look at what happens when cost is set at 100:
+
+```{r}
+svm.fit1<-svm(ispositive~., data=df_data1, cost=100, kernel="linear",scale=FALSE)
+visualizeBoundaryLinear(X_data1,y_data1,svm.fit1)
+```
+Now, we see the outlier is correctly classified with an extremely narrow margins. Therefore, with a big value of C, the SVM tries to correctly classify all the data points with less tolerance of assigning data points in the margin region, and missclassification.
+
+**1.2. SVM with Gaussian Kernels **                    
+To find non-linear decision boundaries with the SVM, we need to first implement a Gaussian kernel. If we have two vectors $X^{(i)}$ and $X^{(j)}$, the gaussian kernel of $k_{gaussian}$ is defined as 
+$$K_{gaussian}(x^{(i)},x^{(j)}) =exp\left(-\frac{||x^{(i)}-x^{(j)}||^2}{2\sigma^2}\right)=exp\left(-\frac{(x^{(i)}-x^{(j)})^T(x^{(i)}-x^{(j)})}{2\sigma^2}\right) ~~~~~~~~~~~~~~~~~~~~~~~Eq(24)$$
+The following R chunk implemented the gaussian kernel using Eq(23) 
+```{r}
+gaussianKernel<-function(X1,X2,sigma){
+  dif<-X1-X2
+  rs<-exp(-1/(2*sigma^2)*t(dif)%*%dif)
+  return(rs[1,1])
+}
+```
+The next R chunk tested the kernel function using the X1 and X2 vectors
+```{r}
+x1<-c(1,2,1)
+x2<-c(0,4,-1)
+sigma<-2
+
+gaussianKernel(x1,x2,sigma)
+```
+The result is about 0.324652.
+
+It should be noted that in the svmTrain function, we use a vetorized version of gaussian kernel function to speed up the calcualtion forlarge amount of data. This function accepts a matrix as the input argument where each row corresponds to a vector, and the function outputs the gaussian kernel results as a symmetric matrix. Each element $a_{i,j}$ in the output matrix corresponds to the gaussian kernel between the i-th and j-th rows of the input matrix. We tested the vectorized kernel function using the previous used X1 and X2 vectors. We first built the input maxtrix by binding X1 and X2 by row, and then computed the gaussian kernel.
+```{r}
+vectorized_gaussianKernel<-function(X,sigma){
+  X<-as.matrix(X)
+  X2<-apply(X^2,1,sum)
+  transmatrix<-matrix(1:1,nrow=dim(X)[1])
+  K<- -2*X%*%t(X)+transmatrix%*%t(X2)
+  K<-X2+K
+  gk<-gaussianKernel(1,0,sigma)
+   return(gk^K)
+}
+
+vectorized_gaussianKernel(rbind(x1,x2),sigma)
+```
+ we can see that the vectorized_gaussiankernel function generated the same result of 0.324652 for X1 and X2, as shown by the off-diagonal elements of the output matrix. 
+
+**1.2.2. Example Dataset 2 **          
+In the next part of this project, another dataset was loaded, and visualized by the plotData function.
+```{r}
+X2_data<-read.csv('ex6data2X.txt',header=FALSE)
+y2_data<-read.csv('ex6data2y.txt',header=FALSE)
+plotData(X2_data,y2_data)
+```
+
+From the plot, there is no linear decision boundary that separates the positive and negative examples for this dataset. Therefore, Instead of using linear kernel, we will use gaussian kernel and see if we can get reasonable decision boundary. This chunk also includes the function visualizeBoundary for visualizing non-linear decision boundary. This function first genrates 100 by 100 grids on the 2 dimension space expanded by the two features of X, then predicts the class of each grid point using the SVM model trained on training dataset. By visualizing the class distribution of the grid points, we can see the profile of the decision boundary:
+```{r}
+svmPredict<-function(X,model,...){
+  X<-as.matrix(X)
+  m<-dim(X)[1]
+  p<-rep(0,m)
+  pred<-rep(0,m)
+  ml<-dim(model$X)[1]
+  K<-matrix(0,nrow=m,ncol=ml)
+  
+  if (model$kernel=="linearKernel"){
+    p<-X%*%model$w+model$b
+  }
+  else if (model$kernel=="gaussianKernel"){
+    X1<-apply(X^2,1,sum)
+    X2<-apply(model$X^2,1,sum)
+    transmatrix<-matrix(1:1,nrow=m,ncol=1)
+    K<- -2*X%*%t(model$X)+transmatrix%*%t(X2)+X1
+    gs<-model$kernelF(1,0,...)
+    K<-gs^K
+    #K<-exp(K*log(gs))
+    yalphas<-model$y*model$alphas
+    K<-t(t(K)*yalphas)
+    p<-apply(K,1,sum)+model$b
+  }
+  else{
+    mX<-model$X
+    for (i in 1:m){
+      prediction=0
+      for (j in 1:ml){
+        K[i,j]<-model$kernelF(X[i,],mX[j,],...)
+        prediction<-prediction+model$alphas[j]*model$y[j]*K[i,j]
+      }
+      p[i]<-prediction+model$b
+      
+    }
+    
+  }
+  
+  
+  pred[p >= 0]<-1
+  pred[p < 0]<-0
+  return(pred)
+  
+  
+}
+visualizeBoundary<-function(X,y,model,...){
+  X_plot<-seq(from=min(X[,1]),to=max(X[,1]),length.out=100)
+  Y_plot<-seq(from=min(X[,2]),to=max(X[,2]),length.out=100)
+  xgrid<-expand.grid(X_plot,Y_plot)
+  y<-as.factor(y[,1])
+  names(xgrid)<-c("X_plot","Y_plot")
+  ygrid<-as.factor(svmPredict(xgrid,model,...))
+  
+  
+   ggplot(data=xgrid,aes(x=xgrid[,1],y=xgrid[,2],col=ygrid))+geom_point(size=1)+
+     geom_point(data=X,aes(x=X[,1],y=X[,2],col=y,shape=y),size=3)+
+     scale_color_manual("",breaks=ygrid,values=c("blue","red"))+xlab("x")+ylab("Y")
+}
+
+sigma=0.05
+svmrg.fit<-svmTrain(X2_data,y2_data,10,"gaussianKernel",FUN=gaussianKernel,sigma=sigma)
+visualizeBoundary(X2_data,y2_data,svmrg.fit,sigma=sigma)
+```
+The implementation of svmPredict function is straightforward, we compute $$P_j=\sum_{i=1}^ma_it^{(i)}k(x_i,x_j)+b $$ for each new observation with the feature vector $x^{(j)}$ using the $a_i$ and b values obtained from svmTraining function based on the training dataset. If $P_j>0$, then classify the observation as +1, or -1 otherwise.           
+
+**1.2.3. Example Dataset 3 **          
+In this part of the project, a SVM model is trained by training dataset and then evaluated by validation dataset to find the optimum values of C and $\sigma$ of gaussian kernel for non-linear separable data. Using validation dataset, SVM models trained using different combinations of C and $\sigma$ values varying from 0.01 to 30 were evaluated and the optimum combination with the highest prediction accuracy was selected. The optimum C and $\sigma$ values were then used by visualizeBoundary function to predict the classes of the 100 by 100 grid data points to show the boundary profile, and the class distribution of the training data points. Now,let's first load the training and validation datasets.
+```{r}
+X_data3<-read.csv("ex6data3X.txt",header=FALSE)
+Xval_data3<-read.csv("ex6data3Xval.txt",header=FALSE)
+y_data3<-read.csv("ex6data3y.txt",header=FALSE)
+yval_data3<-read.csv("ex6data3yval.txt",header=FALSE)
+```
+
+We then implemented the dataset3Params function. This function used training dataset to train SVM using gaussian kernel with different C and $\sigma$ values. The trained models were then used to predict the classes of examples in validation dataset. The optimum C and $\sigma$ combination with the highest prediction accuracy was finally returned by the function.
+```{r}
+dataset3Params<-function(X,y,Xval, yval){
+  opt<-c(1,0.3)
+  C<-c(0.01,0.03,0.1,0.3,1,3,10,30)
+  sigmas<-c(0.01,0.03,0.1,0.3,1,3,10,30)
+  C.sigmas<-as.matrix(expand.grid(C,sigmas))
+  C.sigmas<-as.data.frame(t(C.sigmas))
+  pc<-sapply(C.sigmas,function(x){
+    fit<-svmTrain(X,y,x[1],"gaussianKernel",FUN=gaussianKernel,sigma=x[2])
+    pred<-svmPredict(Xval,fit,sigma=x[2])
+    p<-mean(pred==yval[,1])
+    return(p)
+    
+    })
+  opt<-C.sigmas[which.max(pc)]
+  
+  return(opt)
+}
+
+#train and return the optimum C and sigma values
+opt_C_sigma<-dataset3Params(X_data3,y_data3,Xval_data3,yval_data3)
+cat("The optimum C and sigma values are: ",opt_C_sigma[1,1]," and ",opt_C_sigma[2,1],"respectively\n")
+```
+Now, we use the optimum C and $\sigma$ values to fit the SVM model, and show the decision boundary and class distribution of training dataset by visualizeBoundary function.
+```{r}
+fit<-svmTrain(X_data3,y_data3,1,"gaussianKernel",FUN=gaussianKernel,sigma=0.1)
+visualizeBoundary(X_data3,y_data3,fit,sigma=0.1)
+```
+**2. Spam Classification **          
+In this part of the project, we used the SVM to build a spam filter. A SVM model was trained to classify whether a email x, is spam(y=1) or non-spam (y=0). In particular, each email is converted to a feature vector $x\in R^n$, where n is the number of words in the vocabulary list used in this project.
+
+**2.1. Preprocessing Emails **          
+Before we can classify an email according to its content, the email needs to be processed to "normalize" its content. For example, all the URLs in the email are converted to "httpaddr"" and treated as the same, and all numbers are replaced with the text "number", etc. Such a normalization allows us to classify the email based on the type of the entity (whether it is a URL), rather than the specific information of the entity (the specific URL string) in the email content and thus, improves the efficiency of the classifier.
+
+The following R chunk includes function processEmail(). This function implemented the following email preprocessing and normalization procedures:
+
+ + Lower-casing: The entire email is converted lower case.
+ + Stripping HTML: All HTML tages are removed and only the content remains
+ + Normalize URLs: All URLs are replaced with the text "httpaddr"
+ + Normalize Email Address: All email addresses are replace with the text "emailaddr"
+ + Normalize Numbers: All numbers are replaced with the text "number"
+ + Normalize Dollars: All dollar signs($) are replaced with the text "dollar"
+ + Word stemming: Words are reduced to their stemmed form. For example, "discount","discounts","discounted","discounting" are all replaced with
+   "discount". In this project, we used R package "SnowballC" to do the word stemming
+ + Removal of non-words: Non-words and punctuation have been removed. All white spaces (tabs, newlines, spaces) have all been trimmed to a single space
+   character
+
+```{r}
+# read vocabList from vocab.txt file
+getVocabList<-function(){
+  vocab<-read.table("vocab.txt",sep="\t",stringsAsFactors = FALSE)
+  vocabList<-vocab[,2]
+}
+
+processEmail<-function(contents){
+    wordIndex<-c()
+    listSize<-0
+    
+    # lower-casing
+    email_contents<- tolower(file_contents)
+    
+    #stripping HTML
+    email_contents<- gsub("<[^<>]+>","", email_contents)
+    
+    #Normalize numbers
+    email_contents<- gsub("[0-9]+","number",email_contents)
+    
+    #normalize URLs
+    email_contents<- gsub('(http|https)://[^\\s]*', 'httpaddr',email_contents)
+    
+    #normalize Email addresses
+    email_contents<- gsub('[^\\s]+@[^\\s]+','emailaddr',email_contents)
+    
+    #normalize dollar sign
+    email_contents<- gsub('[$]+','dollar',email_contents)
+    
+    #replace (,),[,], and {,} with space
+    email_contents<- gsub('\\(',' ',email_contents)
+    email_contents<- gsub('\\)',' ',email_contents)
+    email_contents<- gsub('\\[',' ',email_contents)
+    email_contents<- gsub('\\]',' ',email_contents)
+    email_contents<- gsub('\\{',' ',email_contents)
+    email_contents<- gsub('\\}',' ',email_contents)
+
+    #parse the email contents by non-words characters, and store the parsed words in a word vector
+    email_contents<-(strsplit(email_contents,'\\.|-|,|%|&|/|@|#|-|:|&|\\?|\\*|!|\\||\\+|_|>|<|;|\'|=|\"|\\n|\\s'))[[1]]
+    
+    #remove the starting non-word, non-digit character in each word 
+    if (length(email_contents)>0){
+       for(str in email_contents){
+           str<-gsub('[^a-zA-Z0-9]','',str)
+       }
+     
+      #remove empty words from the word vector
+     email_contents<-email_contents[email_contents!='']
+     
+     # word stemming
+     email_contents<-wordStem(email_contents)
+     
+     # load vocablist
+     vocabList<-getVocabList()
+     listSize<-length(vocabList)
+     
+     # if any stemmed word is in the vocablist, add the index of that word in the vocabList to wordIndex vector
+     for(i in seq_along(email_contents)){
+       for (j in seq_along(vocabList)){
+         if (email_contents[i]==vocabList[j]){
+           wordIndex<-c(j,wordIndex)
+           break
+         }
+       }
+     }
+     
+     return(list(vocabSize=listSize,wordIndex=wordIndex))
+    }
+ 
+}
+```
+In addition to preprocessing the email content, processEmail function also checks each word extracted from the email content with a vocabulary list. This vocabulary list can be considered as an array of the most frequently occurrd words. Each word in the vocabulary is unique and has a corresponding index. The vocabulary list is loaded by the getVocabList function from a txt file. If a word extracted from the email is found in the vocabulary list, processEmail function will add its index to a vector(wordIndex), and return wordIndex vector after all the word in email have been checked.
+
+Now, we can read an email and use the processEmail function to find which words in the email are on the vocabulary list by their corresponding indices in the vocabulary list:
+```{r}
+file_contents<-read_file("emailSample1.txt")
+word_index<-processEmail(file_contents)
+word_index
+
+```
+**2.2. Extracting Features from Emails **          
+After processing the email content using the processEmail function, we obtained a vector containing the vocabulary list indices of words extracted from email content. It should be noted that since many words from email are on the vocabulary list, only some of the words from email have the corresponding indices. I would call this vector the wordIndex vector
+
+Now we will convert this vector into another vector in $R^n$, where n is the size of the vocabulary list. I would call this vector as feature vector. Each element in the feature vector is either 0 or 1. Specifically, the i-th element $x_i$ in a feature vector for an email corresponds to whether the i-th word in the vocabulary list occurs in the email. $x_i=1$ if the ith word is in the email and $x_i=0$ if the i-th word is absent from the email.
+
+The following R chunk includes the function to covert the wordIndex vector obtained from processEmail function to feature vector.
+```{r}
+emailFeatures<-function(word_index_input){
+  indexListSize<-word_index_input$vocabSize
+  featureVector<-rep(0,indexListSize)
+  word_index_list<-word_index_input$wordIndex
+  
+  for (index in word_index_list){
+         featureVector[index]=1
+  }
+  
+  return(featureVector)
+  
+}
+```
+The algorithm is very straightforward. First, create the feature vector whose size equals the size of the vacabulary list (1899), and initialize all its elements to zero. Next, read each element in the wordIndex vector and set the corresponding element in feature vector to 1. For example, if an element in wordIndex vector is found to be 18, then set the 18th element in feature vector to 1. If the 18th element has already been set as 1, then just skip, and read the next element in the wordIndex vector.
+
+Now test the emailFeatures function:
+
+```{r}
+features<-emailFeatures(word_index)
+features[1:150]
+```
+**2.3. Training SVM for Spam Classification **          
+After completing the feature extraction, the next step is to load a preprocessed training dataset to train SVM. The training dataset contains 4000 training examples of spam and non-spam email. There is also a test dataset that contains 1000 test samples. Each original email was preprocessed using te processEmail and emailFeatures functions and converted into a vector $x^{(i)}\in R^{1899}$. Now let's load the training and test datasets and train the SVM model.
+```{r}
+X_spamtrain<-read.csv("spamtrainX.txt",header=FALSE)
+y_spamtrain<-read.csv("spamtrainy.txt",header=FALSE)
+X_spamtest<-read.csv("spamtestXtest.txt",header=FALSE)
+y_spamtest<-read.csv("spamtestYtest.txt",header=FALSE)
+
+c=0.4
+
+spamModelLinear<-svmTrain(X_spamtrain,y_spamtrain,c,"linearKernel",FUN=linearKernel)
+spamPredLinear<-svmPredict(X_spamtrain,spamModelLinear)
+mean(spamPredLinear==y_spamtrain[,1])*100
+```
+The prediction accuracy for training dataset is 99.75%. Now let's see the accuracy for the test dataset:
+```{r}
+spamPredLinear_test<-svmPredict(X_spamtest,spamModelLinear)
+mean(spamPredLinear_test==y_spamtest[,1])*100
+```
+The prediction accuracy for test dataset is 98%
+
+**2.4. Top Predictors for Spam **          
+To better understand how the spam classifier works, we can inspect the parameters to see which words the classifier thinks are the most predictive for spam. In the next R chunk, function ge_important_features was implemented to find the most predictive words for spam. The basic idea is that the more predictive words for spam (corresponding to predicted value, y = +1) should have larger positive value in the w vector. 
+$$w=\sum_{i=1}^ma_it^{(i)}x^{(i)}  $$
+where $x^{(i)}$ is the feature vector of the i-th observation/example in the training set, and w is a vector that has the same size as feature vectors. For prediction of a new observation with feature vector $x_j$, we have 
+$$ P_j=w^Tx^{(j)}+b$$
+From this equation, the more positive the inner product of w and $x^{(j)}$, the closer the $P_j$ value will approach to +1, and the new observation will be more likely to be classified as a spam.  Therefore, elements in vector w having a larger positive value, with corresponding elements in $x^{(j)}$ as 1, will contribute more to a spam classification.          
+In the following get_important_features function, the top 15 words in the vocabulary list corresponding to the top 15 largest positive elements in w vector were listed. These words were considered the most predictive words by the classifier.
+
+```{r}
+get_important_features<-function(vocList,w_vector,topN){
+  sorted_w<-sort.int(w_vector,decreasing = TRUE,index.return=TRUE)
+  sorted_w_index<-sorted_w[[2]][1:topN]
+  sorted_w_values<-sorted_w[[1]][1:topN]
+  
+  topVocList<-vocList[sorted_w_index]
+  important_features<-cbind(topVocList,sorted_w_values)
+  names(important_features)<-c("word","weight")
+  
+  return(important_features)
+
+}
+
+vocList<-getVocabList()
+w_vector<-spamModelLinear$w
+top_weights<-get_important_features(vocList,w_vector,15)
+top_weights
+```
+**3. Furthe optimization **          
+Hopefully, the R code and the algorithms used in this project is helpful for you to understand the SVM algorithm and its application in email spam classification application. After you understand the algorithms, there is definitely big space to further optimize the algorithms and practice the R skills. Here are some of my thoughts:
+* optimize the data structure for better efficiency. 
+For example, in Section 2.1. in function processEmail, we used a for loops to search the vocabulary list to find the index of each word extracted from the email content. If the vocabulary list is huge, we should definitely use other data structrues that are more efficient for this task, such as hash table. We can either use the R environment to implement such a hash table data structure, or use the unsorted map data structure from C++ STL and then integrate the corresponding C++ function to R by Rcpp package. 
+* We can integrate the related functions such as svmTrain, svmPredict, visualizeBoundary, visualizeBoundaryLinear and dataset3Params in a class. For example a S3 class that can automatically dispatch the appropriate methods for prediction and data visualization.
+
+
+
+
+
+
