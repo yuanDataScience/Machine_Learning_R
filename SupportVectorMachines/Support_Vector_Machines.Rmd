@@ -7,11 +7,11 @@ output:
   
 ---
 
-### Introduction
+## Introduction
 
 This project implemented support vector machine (SVM) using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The datasets used in this project were originally from Coursera Machine Learning class and were converted to txt files. In addition to the R code and the data, this markdown notebook also includes a review of SVM and the Sequential Minimal Optimization (SMO) algorithm, which was implemented in this project.  
 
-#### Function list: Functions implemented in this markdown notebook
+### Function list: Functions implemented in this markdown notebook
 * svmTrain - SVM training Function that implements a simplified version of SMO algorithm 
 * svmPredict - SVM prediction function
 * plotData - Plot 2D data
@@ -375,7 +375,7 @@ visualizeBoundaryLinear_sim(X_data1,y_data1,svml.fit100)
 
 Using C=100, first, we notice that the margins are narrower, indicating that SVM is less tolerate to data points in the margin region, and therefore, less data points are now in the margin region due to the bigger penalty applied to the $C\sum_{i=1}^m\xi_i$ item in Eq(11). In addition, the outlier in the far left is now closer to the decision boundary. By running the svmTrain functions several times, sometimes, the outlier was correctly classified, but sometimes not. It seems that the simplified version of the SMO algorithm does not converge to the global optimium.
 
-In the following R chunk, the effects of C values using e1071 package, which contains a fully implemented SVM. in this chuck, visualizeBoundaryLinear function was implemented to visualize the decision boundary found by the SVM. Notice that in the svm() function, we change C parameter by ajusted the "cost" argument. In addition, we need to pack feature data and label data into one dataframe for the svm function of e1071 package. Now let's first see the results when C=1 by setting cost to 1: 
+In the following R chunk, the effects of C values using e1071 package. In this chuck, visualizeBoundaryLinear function was implemented to visualize the decision boundary found by the SVM. Notice that in the svm() function, we change C parameter by ajusted the "cost" argument. In addition, we need to pack feature data and label data into one dataframe for the svm function of e1071 package. Now let's first see the results when C=1 by setting cost to 1: 
 ```{r}
 df_data1<-cbind(X_data1,(y_data1))
 names(df_data1)<-c("Xposition","yposition","ispositive")

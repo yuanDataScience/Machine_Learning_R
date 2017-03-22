@@ -1,0 +1,351 @@
+---
+title: "Softmax Regression"
+author: Yuan Huang
+output:
+  html_notebook: default
+  html_document: default
+  
+---
+
+## Introduction
+
+This project implemented softmax regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The datasets used in this project were originally from Coursera Machine Learning class and were converted to txt files. In addition to the R code and the data, this markdown notebook also includes a review of softmax algorithm.  
+
+### Function list: Functions implemented in this markdown notebook
+* softmax -  Function to execute softmax regression given the feature matrix and parameter matrix 
+* transferTarget - Function to transfer label vector to the corresponding mutiple column label matrix
+* fR - Regularized softmax regression cost function
+* gR - Regularized softmax regression gradient function
+* generate_init_theta - Function to generate the initial parameters for softmax regression,given the training dataset 
+* checkGradCostFun - Function to help check the softmax regression gradient function gR
+* computeNumericGradient - Numerically compute gradients
+* predict - softmax regression prediction function      
+
+
+First, let's load the R libraries for this project. In this project, the Rcgmin function of Rcgmin package was used to optimize the softmax regression model parameters using the cost and gradient functions.  
+```{r}
+#load the library
+library(ggplot2)
+library(Rcgmin)
+```
+
+**1. Softmax Regression Review**                                     
+   
+This section includes a brief review of softmax regression. Softmax regression is suitable to the classification problems where the class label y can take more than tow possible values. In the multi-class classification and neural network learning projects, logistic regression and a 3-layer neural network with its output layer implemented by logistic regression were used to recognize the digital numbers from their digit images. Since each digit image can have up to 10 possible digit values, and logistic regression is basically a binary classifier, we had to use one-versus-all method to classify digit mages.          
+
+In logistic regression, output for each observation is a scalar variable between 0 and 1, corresponding to the probability that the observation belongs to class +1. In softmax regression, output for each observation is a k dimensional vector, where k equals to the number of the classes that the observation may belong to. Each element in this k-dimensional vector $x_i, i \in$ {1,2,...k}, is a number between 0 and 1, corresponding to the probability of the observation belonging to the corresponding class i. In addition, since each observation must belong to one of the k class, $\sum_{i=1}^kx_i=1$.
+
+**1.1. Definition of symbols and several matrices **                      
+Before deriving the softmax algorithm, it would be useful to define the symbols used in the following sections. It should be noted that I just invented all these names and symbols for the purpose of explanation. They are not standard names:                    
+(a). feature maxtrix X
+$$\mathbf{X} = \left[\begin{array}
+{rrrr}
+x_{1}^{(1)}&x_{2}^{(1)}&,,,&x_{n}^{(1)}\\
+x_{1}^{(2)}&x_{2}^{(2)}&,,,&x_{n}^{(2)}\\
+,,,&,,,&,,,&,,,\\
+x_{1}^{(m)}&x_{2}^{(m)}&,,,&x_{n}^{(m)}
+\end{array}\right]=\left[\begin{array}
+{rrrr}
+x^{(1)}\\
+x^{(2)}\\
+,,,\\
+x^{(m)}
+\end{array}\right]
+$$
+Feature matix X contains the features of the observations. The i-th row of X is the feature vector of the i-th observation, $x^{(i)}$, which is a n-dimensional vector. n is the number of features. Therefore, matrix X is a m by n matrix, where m and n are the numbers of the observations and features in the training dataset, respectively.
+
+(b). label matrix T
+$$\mathbf{T} = \left[\begin{array}
+{rrrr}
+t_{1}^{(1)}&x_{2}^{(1)}&,,,&t_{k}^{(1)}\\
+t_{1}^{(2)}&t_{2}^{(2)}&,,,&t_{k}^{(2)}\\
+,,,&,,,&,,,&,,,\\
+t_{1}^{(m)}&t_{2}^{(m)}&,,,&t_{k}^{(m)}
+\end{array}\right]=\left[\begin{array}
+{rrrr}
+t^{(1)}\\
+t^{(2)}\\
+,,,\\
+t^{(m)}
+\end{array}\right]
+$$
+Label matrix is converted from the class label of observations in the dataset. The i-th row of label matrix is the label vector of the i-th observation. In each label vector, only one element is 1, and all the other elements are 0. The index of the element whose value is 1 corresponds to the class label of that observation. For example, in the following label matrix, the class label of observations 1, 2 and 3 are 2,1,and 3, respectively (remeber each row correponds to one observation).
+$$ \left[\begin{array}
+{rrr}
+0&1&0\\
+1&0&0\\
+0&0&1
+\end{array}\right]
+$$
+
+The dimension of the label matrix is m by k where m and k are the numbers of the observations and classes, respectively. In this project, the conversion of class label vector to label matrix was accomplished by the transferTarget function, as shown in the following R chunk:
+```{r}
+transferTarget<-function(target){
+  m<-length(target)
+  num_class=10
+  rs<-matrix(0,nrow=m,ncol=num_class)
+  
+  for (i in seq_along(target)){
+    rs[i,target[i]]=1
+  }
+  
+  
+  return(rs)
+  
+}
+```
+
+
+(c). parameter matrix $\theta$
+$$\mathbf{\theta} = \left[\begin{array}
+{rrrr}
+\theta_{11}&\theta_{12}&,,,&\theta_{1k}\\
+\theta_{21}&\theta_{22}&,,,&\theta_{2k}\\
+,,,&,,,&,,,&,,,\\
+\theta_{n1}&\theta_{n2}&,,,&\theta_{nk}
+\end{array}\right]=\left[\begin{array}
+{cccc}
+\theta_1,\theta_2,,,,\theta_k
+\end{array}\right]
+$$
+Parameter matrix $\theta$ is a n by k matrix where n and k are the numbers of features and classes, respectively. Each column of $\theta$ matrix is a n-dimensional vector. The inner product of the j-th row of feature matrix $x^{(j)}$ and i-th column of $\theta$ matrix is a scalar variable, which is converted to the corresponding probability of observation j belonging to class i by the softmax regression function.          
+
+(d). estimation matrix $h_\theta$          
+Estimation matrix is also a m by k matrix, which has the same dimension as the label matrix. Each element $y_j^{(i)}$ in $h_\theta$ matrix corresponds to the probability of observation i belonging to class j, and is computed by softmax regression using feature matrix X, and parameter matrix $\theta$. Since for each specific observation i, it must belong to one of the k class, $\sum_{j=1}^ky_j^{(i)}=1$. 
+
+**1.2. softmax regression function **  
+We define the propbability that an observation j belongs to class b by softmax regression 1as 
+$$p(c_b|x^{(j)})=y_b^{(j)}=\frac{e^{\theta_b^T x^{(j)}}}{\sum_{i=1}^ke^{\theta_i^Tx^{(j)}}} ~~~~~~~~~~~~~~~~~~Eq(1)$$
+**1.3. Cost function and gradient function**          
+According to Eq(1), given an observation j, the probability that j belongs to class b is defined by $y_b^{(j)}$. Now if we know that observation j belongs to a class, for example, l, according to its label in a supervised training dataset, then the probability of observing observation j with its corresponding class label is $y_l^{(j)}$, which can be expressed as:
+$$p^{(j)}=\prod_{i=1}^k \left[y_i^{(j)}\right]^{ti^{(j)}} ~~~~~~~~~~~~~~~~~~~~~~~~~  Eq(2)$$
+Considering the fact that in Eq(2), $t_i^{(j)}$ is the label vector where only its l-th element is 1 (because j belongs to class l), and all the other elements are 0, Eq(2) can be simplified to $p^{(j)}=y_l^{(j)}$. Therefore, Eq(2) provides a general equation to compute the probability of observing a training example with its corresponding class label.
+
+Knowing the probability for a single observation, we can extend Eq(2) to finding the joint probability of observing all the training dataset examples, which is the likelihood:
+$$llh=\prod_{j=1}^m p^{(j)}=\prod_{j=1}^m\prod_{i=1}^k \left[y_i^{(j)}\right]^{t_i^{(j)}} ~~~~~~~~~~~~~~~Eq(3)$$
+and the cost function is defined as the negative of the log likelihood averaged over the number of observations. We obtain the cost function from Eq(3) as:
+$$ J(\theta) =-\frac{1}{m}\sum_{j=1}^m\sum_{i=1}^kt_i^{(j)}ln(y_i^{(j)}) =-\frac{1}{m}\sum_{j=1}^m\sum_{i=1}^kt_i^{(j)}ln\frac{e^{\theta_i^T x^{(j)}}}{\sum_{l=1}^ke^{\theta_l^Tx^{(j)}}}~~~~~~~~~~~~Eq(4) $$
+Remember, $\theta_i$ is the paramter vector corresponding to class i. From Eq(4), we can derive the gradient function of $\frac{\partial J(\theta)}{\partial \theta_i}$ as:
+$$\frac{\partial J(\theta)}{\partial \theta_l}=-\frac{1}{m}\sum_{j=1}^m\sum_{i=1}^kt_i^{(j)} \left[I(i=l)-y_l^{(j)} \right]x^{(j)} $$
+where $I(i=l)=1$ if $i=l$,or 0 otherwise. In addition, since there is only one element in the label vector $t^{(j)}$ that equals 1, and the other elements are all 0, $\sum_{i=1}^kt_i^{(j)}=1$. Introducing these to the above equation, we get:
+$$\frac{\partial J(\theta)}{\partial \theta_l}=-\frac{1}{m}\sum_{j=1}^m \left[t_l^{(j)}-y_l^{(j)} \right]x^{(j)} ~~~~~~~~~~~~~~~Eq(5) $$
+Eqs(4) and (5) are the non-regularized form of cost and gradient functions, respectively. We can add the regularized items to get the regularized format. 
+$$ J(\theta) =-\frac{1}{m}\sum_{j=1}^m\sum_{i=1}^kt_i^{(j)}ln\frac{e^{\theta_i^T x^{(j)}}}{\sum_{l=1}^ke^{\theta_l^Tx^{(j)}}}+\frac{\lambda}{2}\sum_{i=2}^N\sum_{j=1} ^k\theta_{i,j}^2~~~~~~~~~~~~Eq(6) $$
+$$\frac{\partial J(\theta)}{\partial \theta_l}=-\frac{1}{m}\sum_{j=1}^m \left[t_l^{(j)}-y_l^{(j)} \right]x^{(j)}+\lambda\sum_{i=2}^N\theta_{i,l} ~~~~~~~~~~~~~~~Eq(7)$$
+where $\theta$ is the parameter matrix defined in section 1.1. item(C). Remember that $\theta_{1,j}$ where $j \in$ {1,2,...k}, is the bias term of the parameter vector $\theta_j$, and should not be included in the regularized item.
+
+**1.4. Vectorized computing of cost and gradient functions **                
+Let's first look at the item $ln\frac{e^{\theta_i^T x^{(j)}}}{\sum_{l=1}^ke^{\theta_l^Tx^{(j)}}}$ in Eq(4). The item $e^{\theta_i^T x^{(j)}}$ is the j-th row, i-th column element of the matrix $e^{X~\theta^T }$, and if we divide each of the element in this matrix by its row sum, we get $\frac{e^{\theta_i^T x^{(j)}}}{\sum_{l=1}^ke^{\theta_l^Tx^{(j)}}}$  as the j-th row, i-th column element of the resulting matrix. This matrix is actually the estimation matrix $h_\theta$(section 1.1. item(d)). Applying the logrithm operation on the estimation matrix, we get $ln\frac{e^{\theta_i^T x^{(j)}}}{\sum_{l=1}^ke^{\theta_l^Tx^{(j)}}}$ as the j-th row, i-th column element of the resulting logrithm of estimation matrix . In addition, $t_i^{(j)}$ is the j-th row, i-th colum of the label matrix T. Therefore, each item in $t_i^{(j)}ln\frac{e^{\theta_i^T x^{(j)}}}{\sum_{l=1}^ke^{\theta_l^Tx^{(j)}}}$ corresponds to the j-th row, i-th column element of the matrix obtained by mulitplying label matrix T and the logrithm of estimation matrix element wise. The non-regularized cost function is the sum of all the elements in this matrix. The regularized cost function is obtained by adding the squares of the elements in $\theta$ matrix, exculding the bias terms.
+
+For gradient function in Eq(7), 
+$$\sum_{j=1}^m \left[t_l^{(j)}-y_l^{(j)} \right]x^{(j)}$$
+is the $l$-th column of $X^T(T-h_\theta)$ ,where X, T and $h_\theta$ are label matrix, estimation matrix and feature matrix, respectively . Therefore, the gradient of the cost function for all the $\theta_l$ vectors can be obtained from $X^T(T-h_\theta)$.
+
+The following R chunk defines the softmax, gradient and cost functions.
+```{r}
+#define the softmax function
+softMax<-function(X,Theta) {
+  
+  X<-as.matrix(X)
+  Theta<-as.matrix(Theta)
+  
+  Y<-exp(X%*%Theta)
+  rowMaxY<-apply(Y,1,max)
+  
+  rowMaxMatY<-(rowMaxY)%*%t(rep(1,dim(Theta)[2]))
+  Y<-Y/rowMaxMatY
+  
+  rowSumY<-apply(Y,1,sum)
+  rowSumMatY<-(rowSumY)%*%t(rep(1,dim(Theta)[2]))
+  Y<-Y/rowSumMatY
+  
+  return(Y)
+}
+
+#cost function
+fR<-function(theta,X,y,lambda){
+  X<-as.matrix(X)
+  m<-length(y)
+  
+  X<-cbind(rep(1,m),X)
+  num_class<-10
+  num_features<- dim(X)[2]
+  
+  Theta<-matrix(theta,nrow=num_features,ncol=num_class)
+  
+  T<-transferTarget(y)
+  Y<-softMax(X,Theta)
+  cost<- -1*(1/m)*sum(T*log(Y))+lambda/(2*m)*sum(Theta[-1,]*Theta[-1,])
+  return(cost)
+}
+
+#gradient function
+gR<-function(theta,X,y,lambda){
+  X<-as.matrix(X)
+  m<-length(y)
+  
+  X<-cbind(rep(1,m),X)
+  #num_class<-length(unique(y))
+  num_class<-10
+  num_features<- dim(X)[2]
+  
+  Theta<-matrix(theta,nrow=num_features,ncol=num_class)
+  
+  T<-transferTarget(y)
+  Y<-softMax(X,Theta)
+  
+  grad<- -(1/m)*(t(X)%*%(T-Y))
+  grad[-1,]<- grad[-1,]+lambda/m*Theta[-1,]
+  return(as.vector(grad))
+}
+
+```
+**2. Softmax Regression Practice **             
+In this section, we will use softmax regression to recognize handwritten digits (from 0 to 9). Example images of these digits are shown below:     
+
+![sample digit images](ex3.jpg)
+
+**2.1 Dataset **          
+The dataset contains 5000 training examples of handwritten digits. Now let's first read the data. 
+```{r}
+image_X<-read.csv('ex3data1X.txt',header=FALSE)
+targety<-read.csv('ex3dataY.txt',header=FALSE)
+targety<-targety[,1]
+
+cat("The dimension of image_X is ",dim(image_X),"\n")
+cat("The length of targety is ",length(targety),"\n")
+```
+In the dataset, each training exmple is a 20 pixel by 20 pixel grayscale image of the digit. Each pixel is represented by a floating point number indicating the grayscale intensity at that location. The 20 by 20 grid of pixels have been converted to a 400-dimensional vector in the input file. 
+
+Here we see that the image_X dataframe has 5000 rows, corresponding to the 5000 observations in the training examples. In addition, each row of image_X contains 400 columns, corresponding to the 400-dimension pixel vector of each observation. The i-th row in image_X dataframe corresponds to the pixel vector of the i-th observation. Finally, targety is a vector consisting of 5000 elements. The ith element defines what number the image of the ith observation contains. Notice that in this vector, digit 0s in training examples were mapped to the value of 10 for the convenience of programming, meaning that if the image of an observation corresponds to 0, its value in the targety vector was set as 10. For all the other digits from 1 to 9, the digit images and the corresponding values in targety vector were consistent. The task of this project is to correctly predict the number given the image vector of that number by softmax regression. 
+
+**2.2. $\theta$ parameter initialization **                               
+Unlike in neural network where randomly initializing the network parameters is required. In softmax regression, we can initialize the elements in $\theta$ matrix by setting them as 0. Given the feature and label matrices, function generate_init_theta can generate the initial $\theta$ vector for softmax regression.
+```{r}
+generate_init_theta<-function(X,y){
+  num_features <-dim(X)[2]+1
+  num_class<-10
+  init_theta<-rep(0,num_features*num_class)
+}
+```
+
+
+**2.3. Gradient checking **          
+Gradient checking is used to test if the gradient function can retrun the correct gredient values for each $\theta$ vector. Gradient function implemented using Eq(7) is based on the derivatives of cost function versus each $\theta_i$ vector, $\frac{\partial J(\theta)}{\partial \theta_i}$. More specifically, element j in the vector returned by the gradient function $\frac{\partial J(\theta)}{\partial \theta_i}$ corresponds to the change in cost function caused by a small disturbance in parameter $\theta_{i,j}$  while holding the other parameters $\theta_{i,k}~~ k \neq j$ constant, divided by the value of the disturbance of $\theta_{i,j}$. 
+
+A simple method to check if the vector returned by the gradient function is correct is to directly introduce a small disturbance to the input $\theta_i$ parameter vector. Each time, only one element in the input vector is changed while others are held constant, and then evaluate the ratio of the corresponding cost function change to the value change of that parameter. Repeat this procedure for all the elements in the input vector, and store the results in a vector. We can then compare this vector to the vector returened by the gradient function element-wise to see if they are consistent.
+
+In the follwoing R code, function computeNumericGradient was used to calculate the gradient of an input vector $\theta$. For element i, $\theta_i$ in the input vector $\theta$, a small change of 2e-4 was introduced while holding the other elements constant, and computed the corresponding $\frac{dJ(\theta)}{d \theta_{i}}$. These values were stored in a vetor and returned as $\frac{\partial J(\theta)}{\partial (\theta)}$.  
+```{r}
+computeNumericGradient<-function(theta,FUN=FR,...){
+  epsilon <- 1e-4
+  
+  gradSize<-length(theta)
+  perturb<-rep(0,gradSize)
+  numgrad<-rep(0,gradSize)
+  
+  for (i in seq(gradSize)){
+    perturb[i]<-epsilon
+    
+    loss1<-FUN(theta+perturb,...)
+    loss2<-FUN(theta-perturb,...)
+    
+    numgrad[i] <-(loss1-loss2)/(2*epsilon)
+    perturb[i]<-0
+  }
+  
+  return(numgrad)
+}
+```
+In the R code of the next chunk, function checkGradCostFun() was implemented to check if gR() function can return the correct gradient values. To make the checking process more efficiently, I only used a small amount of the data from the original dataset. First, the function only sampled 4 examples from the dataset randomly. Then for each example, 100 features were selected to reduce the size of the feature matrix. Briefly speaking, 4 training examples, each having 100 features were sampled for the test. Gradients were calculated using both numeric and derivative methods, and their difference was compared. 
+```{r}
+checkGradCostFun<-function(X,y,lambda=0){
+  
+  X_row<-dim(X)[1]
+  X_col<-dim(X)[2]
+  X<-as.matrix(X)
+  
+  sampled_obs<-sample(1:X_row,size=4)
+  
+  sampled_X<-X[sampled_obs,seq(from=1, to=X_col, by=4)]
+  sampled_y<-y[sampled_obs]
+  
+  init_theta<-generate_init_theta(sampled_X,sampled_y)
+  
+  num_grad<-computeNumericGradient(init_theta,FUN=fR,X=sampled_X,y=sampled_y,lambda=lambda)
+  cal_grad<-gR(init_theta,sampled_X,sampled_y,lambda=lambda)
+  
+  diff_vec<-num_grad-cal_grad
+  total_vec<-num_grad+cal_grad
+  
+  diff<-(t(diff_vec)%*%diff_vec)/(t(total_vec)%*%total_vec)
+  
+  
+  
+  rs_df<-as.data.frame(cbind(num_grad,cal_grad))
+  names(rs_df)<-c("num_grad","cal_grad")
+  
+  #print(rs_df[1:100,])
+  cat("\nIf your gradient implementation is correct, then \n","the relative difference will be small (less than 1e-9). \n",
+      "\nRelative Difference: \n", diff,"\n")
+  
+  
+}
+```
+First, we check the difference of the gradient values computed by the two methods without regularization.
+```{r}
+checkGradCostFun(image_X,targety,lambda=0)
+```
+Then introduce the reularization by setting $\lambda$ = 3
+```{r}
+checkGradCostFun(image_X,targety,lambda=3)
+```
+We can see that the difference in the gradient obtained by these two methods was very small. Therefore, we are confident that gR() function returns correct gradient values.
+
+**2.4. Learning parameters using Rcgmin **
+
+After implementing the softmax cost and gradient functions, the next step is to train the $\theta$ parameters. Here I used Rcgmin function of the Rcgmin package to learn the optimum $\theta$ values. In the following R code, we first define the training datasets by randomly selecting 80% of examples in the dataset, and defining the remaining examples as test dataset, and then initialized $\theta$ parameters by setting all the elements as 0. Next, the optimum $\theta$ parameters were learned by the Rcgmin function. Rcgmin function accepts the initialized $\theta$ values as a vector, names of the cost and gradient functions, and other arguments required by the cost and gradient functions. It returns the optimized $\theta$ parameters corresponding to the minimum cost as a vector. This vector was reformatted to the matrix format as the parameter matrix $\theta$.  
+
+```{r}
+# do the softmax training using conjugate gradient minimum optimization 
+number_example<-dim(image_X)[1]
+training_index<-sample(number_example,number_example*0.8)
+training_X<-image_X[training_index,]
+training_Y<-targety[training_index]
+
+test_X<-image_X[-training_index,]
+test_Y<-targety[-training_index]
+
+init_theta<-generate_init_theta(training_X,training_Y)
+
+thetas<-Rcgmin(par=init_theta,fR,gR,X=training_X,y=training_Y,lambda=0.1)$par
+```
+Finally, $\theta$ obtained from Rcgmin were used to predict the labels of the training examples. This task was accomplished by the predict() function. For each training example, the predict function calcuated the probability of that example belonging to each class using softmax regression, and assigned the class having the highest probability to that example.
+```{r}
+predict<-function(X, theta,num_class){
+  X<-as.matrix(X)
+  m<-dim(X)[1]
+  
+  X<-cbind(rep(1,m),X)
+  num_features<- dim(X)[2]
+  
+  Theta<-matrix(theta,nrow=num_features,ncol=num_class)
+  
+  Y<-softMax(X,Theta)
+  
+  pred<-apply(Y,1,function(x) which(x==max(x),arr.ind=TRUE))
+  return(pred)
+}
+
+```
+In the following R code, the labels of the training dataset was predicted by the predict function, and compared to the corresponding labels in the training dataset. The accuracy was calculated. 
+```{r}
+predicts<-predict(training_X,thetas,10)
+mean(predicts==training_Y)*100
+```
+Results showed that softmax regression predicted 98.78% of the training examples correctly. We also evaluated the test dataset using the established softmax regression model:
+```{r}
+predicts<-predict(test_X,thetas,10)
+mean(predicts==test_Y)*100
+```
+The accuracy for the test dataset using the established softmax regression model was 89.1%.
