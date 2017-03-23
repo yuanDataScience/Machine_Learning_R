@@ -1,0 +1,326 @@
+---
+title: 'Regularized Linear Regression'
+author: 'Yuan Huang'
+output:
+  html_notebook: default
+  html_document: default
+  pdf_document: default
+---
+
+### Introduction
+
+This project implemented the regularized linear regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The datasets used in this project were originally from Coursera Machine Learning class and were converted to txt files.   
+
+#### Functions implemented in this markdown notebook
+* linearRegCostFunction - Function to compute the cost of the regularized linear regression
+* linearRegGrad -  Function to compute the gradient of the regularized linear regression
+* trainLinearReg - Function to train the regression parameters using cost and gradient functions
+* featureNormalize - Function to normalize features and returns the mu and sigma vectors
+* learningCurve - Function to generate the learning curve
+* polyFeatures - Function to generate the design matrix for polynomial fitting
+* mapData - Function to normalize the features given the feature matrix, mu and sigma vectors 
+* plotFit - Plot a polynomial fit
+* validationCurve - Generates a cross validation curve
+
+Before we implement the functions, we first load the R libraries needed for this project. The Rcgmin was used to learn the linear regression parameters using the cost and gradient functions.
+```{r}
+#load the library
+library(ggplot2)
+library(Rcgmin)
+```
+
+**1. Regularized Linear Regression **          
+
+The first part of this project implemented regularized linear regression to predict the amount of water flowing out of a dam using the change of water level in a reservoir. The second part went through some diagnositics of debugging learnining algorithms and examined effects of bias versus variance. 
+
+**1.1. Review of Regularized Linear Regression **                   
+In linear regression project, we derived the cost function as 
+$$J\left( \theta \right) = \frac{1}{2m}\sum_{i=1}^{m} \left( h_\theta \left(x^\left(i\right) \right)-y^\left(i\right) \right)^2~~~~~~~~~~~~~~~~~~~ Eq\left(1\right)$$
+In regularized linear regression, the cost function is:
+$$J\left( \theta \right) = -\frac{1}{2m}\sum_{i=1}^{m} \left( h_\theta \left(x^\left(i\right) \right)-y^\left(i\right) \right)^2+\frac{\lambda}{2m}\left(\sum_{j=2}^n\theta_j^2 \right) ~~~~~~~~~~~~~~~~~~~ Eq\left(2\right)$$
+Compared to the cost function shown in Eq(1), regularized linear regression contains an extra term, $\frac{\lambda}{2m}\left(\sum_{j=2}^n\theta_j^2 \right)$, where $\lambda >0$ is the regularization parameter which controls the degree of the regularization. This item puts a penalty on the cost function J, and restricts the magnitude of $\theta_j$. As the magnitude of $\theta_j$ increases, the penalty increases, leading to an increase in the cost. In addition, value of $\lambda$ can be adjusted to manipulate the weight of the penalty item in the cost function. 
+
+Similar to the derviation of the gradient function for linear regression, gredient for the regularized linear regression is obtained by the derivatives of cost function versus $\theta$
+$$\frac{\partial J(\theta)} {\partial \theta} = -\frac{1}{m}\sum_{i=1}^m\left(h_\theta\left(x^\left(i\right)\right)-y^\left(i\right)\right)x^{\left(i\right)}+\frac{\lambda}{m}\theta~~~~(set~~\theta_1=0) ~~~~~~~~~~~~~~~~~~~ Eq\left(3\right)$$
+The regularized item helps us to combat the model overfitting when multiple variables are included in the regression model. Eqs(2) can be converted to the matrix format as:
+$$J\left( \theta \right) = -\frac{1}{2m}\left[(X\theta-Y)^T(X\theta-Y)\right]+\frac{\lambda}{2m}\theta_{j/1}^T\theta_{j/1}  ~~~~~~~~~~~~~~~~~~~ Eq\left(4\right)$$
+where $\theta_{j/1}$ refers to $\theta$ vector with its first element set as 0.
+
+Eq(3) can be converted to the matrix format as:
+$$\frac{\partial J(\theta)} {\partial \theta} = -\frac{1}{m}\left[X^T(X\theta-Y)\right]+\frac{\lambda}{m}\theta_{j/1}~~~~~~~~~~~~~~~~~~ Eq\left(5\right)$$
+In Eqs(4) and (5), X is the featur matrix where its i-th row is the feature vector of the i-th example in the dataset, $x^{(i)}$ and Y is the target variable vector where the i-th element of the vector corresponds to the target variable of the i-th example in the dataset. 
+
+The following R chunk implemented the regularized cost function and gradient function using Eqs(4) and (5):
+
+```{r}
+linearRegCostFunction<-function(theta,X,y,lambda){
+  m<-dim(X)[1]
+  X<-as.matrix(cbind(rep(1,m),X))
+  y<-as.matrix(y)
+ 
+  cost<- 1/(2*m)*t(X%*%theta-y)%*%(X%*%theta-y)+lambda/(2*m)*t(theta[-1])%*%(theta[-1])
+  return(cost[1,1])
+}
+
+linearRegGrad<-function(theta,X,y,lambda){
+  m<-dim(X)[1]
+  X<-as.matrix(cbind(rep(1,m),X))
+  y<-as.matrix(y)
+  grad<- t(1/m*t(X%*%theta-y)%*%X)
+  grad[-1]<-grad[-1]+lambda/m*theta[-1]
+  return(as.vector(grad))
+}
+```
+
+
+**1.2. Visualizing the dataset**                     
+This project provides 3 datasets: training dataset, validation dataset and test dataset. Training dataset is used to train the model using different values of regularization parameters ( $\lambda$ ). Validation dataset is used to evaluate and compare the validation errors of models trained using different regularization parameter values, and choose the optimum model with the lowest validation error. The test dataset is used to evaluate the error of the optimum model based on a dataset independent of those used in model training.
+
+First, let's load the training and validation datasets, and visualize the training data:
+```{r}
+
+#read the training and validation data
+X_data<-read.csv("Xdata.txt",header=FALSE)
+X_test_data<-read.csv("Xtestdata.txt",header=FALSE)
+X_val<-read.csv("Xval.txt",header=FALSE)
+y_data<-read.csv("ydata.txt",header=FALSE)
+y_test_data<-read.csv("ytest.txt",header=FALSE)
+y_val<-read.csv("yval.txt",header=FALSE)
+
+#visualize the training data
+train_data<-as.data.frame(cbind(X_data,y_data))
+names(train_data)=c("waterlevel","flowing")
+
+ggplot(train_data,aes(x=waterlevel,y=flowing))+geom_point(shape=3,size=3)
+```
+  This figure shows a non-linear relationship between flowing and the water level.
+  
+  We can test the cost and gradient functions using an initial theta vector of [1,1], as shown in the following R chunk:
+```{r}
+theta_ini<-c(1,1)
+linearRegCostFunction(theta_ini,X_data,y_data,1)
+linearRegGrad(theta_ini,X_data,y_data,1)
+```
+The cost is around 303.993, and the gradient is about [-15.30,598.25].
+
+**1.3 Fitting Linear Regression **                     
+In this section, training dataset was fitted by regularized linear regression using the function trainLinearReg(). Model parameters were learned by Rcgmin function using the cost and gradient functions implemented in section 1.1. The following R chunk shows the code of trainLinearReg function:
+  
+  
+```{r}
+trainLinearReg<-function(X,y,lambda){
+ 
+  init_theta<-rep(0,(dim(X)[2]+1))
+  result<-Rcgmin(par=init_theta,fn=linearRegCostFunction,gr=linearRegGrad,X=X,y=y,lambda=lambda)$par
+  return(result)
+}
+```
+In the next R chunk, We plot the regression line obtained using $\lambda=0$, and the data points in training dataset:
+ 
+```{r}
+result_theta<-trainLinearReg(X_data,y_data,0)
+ggplot(train_data,aes(x=waterlevel,y=flowing))+geom_point(shape=3,size=3)+
+  geom_abline(slope=result_theta[2], intercept=result_theta[1], col="green")
+```
+From this figure, it is obvious that the linear regression model is not a good fit to the data because the data has a non-linear pattern. For high dimensional data that are not easy to visualize, we can use learning curve as a tool to help us debug the learning algorithm.
+
+**2. Bias-Variance **                                                            
+An important concept in machine learning is the bias-variance tradeoff. Models with high bias are not complex enough to catch the pattern of the data and tend to underfit, while models with high variance overfit to the training data, and can not generalize to new datasets. In this part of the project, we will plot training and test error on a learning curve to diagnose bias-variance problems.
+
+**2.1. Learning curves **                                      
+This part of the project implemented the code to generate learning curves. Learning curves are useful tools for debugging learning algorithms. A learning curve plots training and cross validation error as a function of training set size. The following R chunk implemented the learningCurve function. Given the training and validation datasets, this function generates the learning curve. Basically, the function first trained a set of linear regression models using different numbers of examples in the training dataset, and then calculated the training and validation error for each model using the exact examples used to train that model, and the entire validation dataset, respectively. The training and validation error thus obtained were plotted versus the numbers of examples used to train the models using ggplot function. 
+```{r}
+#learning curve function
+learningCurve<-function(X,y,Xval,yval,lambda){
+  m=dim(X)[1]
+  
+  n=dim(X)[2]+1 #get the number of features, including bias item
+  sample_size<-rep(0,m)
+  error_train <- rep(0,m)
+  error_val <- rep(0,m)
+  tmp_theta<-rep(0,n)
+  for (i in seq(m)){
+    tmp_theta<-trainLinearReg(X[1:i,,drop=FALSE],y[1:i,,drop=FALSE],lambda)
+    sample_size[i]<-i
+    error_train[i]<-linearRegCostFunction(tmp_theta,X[1:i,,drop=FALSE],y[1:i,,drop=FALSE],0)
+    error_val[i]<-linearRegCostFunction(tmp_theta,Xval,yval,0)
+    
+  }
+  return(as.data.frame(cbind(sample_size,error_train,error_val)))
+}
+
+learning<-learningCurve(X_data,y_data,X_val,y_val,0)
+
+#you put the color in aes arguments if you want the color type to be appeared on axies
+ggplot(learning,aes(x=sample_size))+geom_line(aes(y=error_train,col="error_train"))+
+  geom_line(aes(y=error_val,col="error_val"))+
+  scale_colour_manual("Error Type",breaks = c("error_train", "error_val"),values = c("red", "blue"))
+```
+In this figure, both the training and validation error are high when the training sample size is increased. This reflects a high bias problem in the model, meaning that the linear regression model is too simple and unable to fit the dataset well. In the next section, polynomial regression models will be used to fit this dataset.
+
+**3. Polynomial Regression **                    
+**3.1. Learning Polynomial Regression **                     
+As shown in section 2, the simple linear regression model resulted in underfitting. In this part of the project, a more complex model was established by adding more features. In addition to water level itself, we also included higher powers of water level in the model. In the next R chunk, function polyFeatrues was implemented to establish the design matrix including high powers of water level as features. You can certainly also use the R build-in function to generate the design matrix for polynomial fitting. 
+```{r}
+polyFeatures<-function(X,p){
+  rs<-matrix(rep(0,length(as.matrix(X))*p),ncol=p)
+  for (i in seq(p)){
+    rs[,i]<-X^i
+  }
+  return(rs)
+}
+```
+One problem of using high powers of polynomial features is the big difference in the scales of the features. Therefore, before learning the parameters $\theta$, the feature data was first normalized using the function featureNormalize. The code of this function is in the following R chunk:
+```{r}
+featureNormalize<-function(X){
+  mu<-apply(X,2,mean)
+  sigma<-apply(X,2,sd)
+  X_norm<-scale(X)
+  return(list(mu=mu,sigma=sigma,X_norm=X_norm))
+}
+
+```
+This function calculated means and standard deviations of all features, which are the column means and column standard deviations of feature matrix X, respectively. It then centered features by subtracing the corresponding column mean from each column, and divided each column by its column standard deviation. The entire operation can be achieved using the R build-in function of scale(). 
+
+The following R chunk generated the feature matrix using the polynomial of degree 8 , normalized the features, and trained the non-regularized polynomial regression model.
+```{r}
+p=8
+X_poly<-polyFeatures(X_data,p)
+X_normalized<-featureNormalize(X_poly)
+X_poly<-X_normalized$X_norm
+mu<-X_normalized$mu
+sigma<-X_normalized$sigma
+
+theta<-trainLinearReg(X_poly,y_data,0)
+```
+
+The fitted model is plotted using the plotFit function as shown in the following R chunk. The plotFit function computed the predicted flow values of water levels within a range wider than that defined in the training dataset (from minimum water level in training dataset -15 to the maximum water level in training dataset +25) with an interval of 0.05, and then plot the fitted line. 
+```{r}
+plotFit<-function(min_x,max_x,mu,sigma,theta,p,X_data,y){
+  x_range<-seq(from=min_x-15,to=max_x+25,by=0.05)
+  
+  x_poly<- polyFeatures(x_range,p)
+  x_poly<-mapData(x_poly,mu,sigma)
+  pred<-cbind(rep(1,dim(x_poly)[1]),x_poly)%*%theta
+  fit_pred <- as.data.frame(cbind(x_range,pred))
+  names(fit_pred)<-c("water","flow")
+  fit_pred
+  
+  train_data<-cbind(X_data,y)
+  names(train_data)<-c("water","flow")
+  ggplot(fit_pred,aes(x=water,y=flow))+geom_line(col="blue")+
+    geom_point(data=train_data,aes(x=water,y=flow),col="red")
+  
+}
+
+mapData<-function(X,mu,sigma){
+  trans_vector<-rep(1,dim(X)[1])
+  mu<-trans_vector%*%t(mu)
+  sigma<-trans_vector%*%t(sigma)
+  rs<-(X-mu)/sigma
+  return(rs)
+  
+}
+
+minX<-min(X_data[,1])
+maxX<-max(X_data[,1])
+
+plotFit(minX,maxX,mu,sigma,theta,8,X_data,y_data)
+```
+From this figure, when $\lambda=0$, the fitted curve passes all the data points in the dataset, but with sharp changes in shape. It is highly possible that such a model is overfitted. Now let's see what happens if we use a very large $\lambda=100$:
+```{r}
+theta<-trainLinearReg(X_poly,y_data,100)
+minX<-min(X_data[,1])
+maxX<-max(X_data[,1])
+plotFit(minX,maxX,mu,sigma,theta,8,X_data,y_data)
+```
+With a larger $\lambda$ valule of 100, the curve is more smooth, but misses a lot of data points. Then, what about an intermediate value of $\lambda=1$?
+```{r}
+theta<-trainLinearReg(X_poly,y_data,1)
+minX<-min(X_data[,1])
+maxX<-max(X_data[,1])
+plotFit(minX,maxX,mu,sigma,theta,8,X_data,y_data)
+```
+$\lambda=1$ seems to be a good balance between overfitting and underfitting.
+
+
+Now, let's check the learning curve for non-regularized linear regression model when $\lambda=0$:
+```{r}
+#learning curve for polynomial fitting
+X_poly_val<-polyFeatures(X_val,p)
+X_poly_val<-mapData(X_poly_val,mu,sigma)
+
+learning_poly<-learningCurve(X_poly,y_data,X_poly_val,y_val,0)
+
+#you put the color in aes arguments if you want the color type to be appeared on axies
+ggplot(learning_poly,aes(x=sample_size))+geom_line(aes(y=error_train,col="error_train"))+
+  geom_line(aes(y=error_val,col="error_val"))+
+  scale_colour_manual("Error Type",breaks = c("error_train", "error_val"),values = c("red", "blue"))
+```
+We can see that the non-regularized polynomial linear regression model can achieve very low error for training dataset, but with a high error for validation dataset. In addition, with the increase of the sample size the error of validation dataset increases. This is a typical learning curve when overfitting occurs. With the increase of sample size, noise signals in the training dataset are considered as patterns by the complex model and integrated into the model, leading to an increase in the error in validation dataset.
+
+What about a large $\lambda=100$?
+```{r}
+learning_poly<-learningCurve(X_poly,y_data,X_poly_val,y_val,100)
+
+#you put the color in aes arguments if you want the color type to be appeared on axies
+ggplot(learning_poly,aes(x=sample_size))+geom_line(aes(y=error_train,col="error_train"))+
+  geom_line(aes(y=error_val,col="error_val"))+
+  scale_colour_manual("Error Type",breaks = c("error_train", "error_val"),values = c("red", "blue"))
+
+```
+From this figure, When $\lambda=100$, both training and validation error are high with the increase in the training sample size, reflecting a high bias problem. This is because the large $\lambda$ value seriously restricts the maginitude of the $\theta_i$ vaules, leading to a  model too simple to fit the data.
+
+Now, let's check the regularized linear regression with an intermediate value of $\lambda=1$:
+```{r}
+learning_poly<-learningCurve(X_poly,y_data,X_poly_val,y_val,1)
+
+#you put the color in aes arguments if you want the color type to be appeared on axies
+ggplot(learning_poly,aes(x=sample_size))+geom_line(aes(y=error_train,col="error_train"))+
+  geom_line(aes(y=error_val,col="error_val"))+
+  scale_colour_manual("Error Type",breaks = c("error_train", "error_val"),values = c("red", "blue"))
+
+```
+
+In this figure, there was a great improvement in the error of validation. The training and validation error was very close to each other. This means that an intemediate $\lambda$ value is helpful to balance the overfitting and underfitting with relatively low bias and variance.
+
+**3.2. Selecting $\lambda$ using a cross validation set**                        
+From the previous discussion, finding the appropriate $\lambda$ value is critical to overcome the overfitting and underfitting problems. In the following R chunk, function validationCurve() was implemented to calculate the training and validation error using different $\lambda$ values. The training and validation error corresponding to different $\lambda$ values were then plotted. 
+```{r}
+validationCurve<-function(X,y,Xval,yval){
+  lambda_vec = c(0, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10)
+  error_train<-rep(0,length(lambda_vec))
+  error_val<-rep(0,length(lambda_vec))
+  
+  for (i in seq_along(lambda_vec)){
+    theta<-trainLinearReg(X,y,lambda_vec[i])
+    error_train[i]<-linearRegCostFunction(theta,X,y,0)
+    error_val[i]<-linearRegCostFunction(theta,Xval,yval,0)
+    
+  }
+  result<-as.data.frame(cbind(lambda_vec,error_train,error_val))
+  return(result)
+}
+
+vr<-validationCurve(X_poly,y_data,X_poly_val,y_val)
+
+ggplot(vr,aes(x=lambda_vec))+geom_line(aes(y=error_train,col="error_train"))+
+  geom_line(aes(y=error_val,col="error_val"))+
+  scale_colour_manual("Error Type",breaks=c("error_train","error_val"),values=c("red","blue"))+
+  xlab("lambda")+ylab("Error")
+
+
+```
+From this figure a $\lambda$ value between 2-3 is the optimum that gives a good balance between over- and under-fitting. 
+
+Finally, we check the cost of the regularized linear regression model trained by using the optimum $\lambda=3$:
+```{r}
+#calculate the test error
+X_test_data<-read.csv("Xtestdata.txt",header=FALSE)
+X_poly_test<-mapData(polyFeatures(X_test_data,p),mu,sigma)
+y_test_data<-read.csv("ytest.txt",header=FALSE)
+theta<-trainLinearReg(X_poly,y_data,3)
+linearRegCostFunction(theta,X_poly_test,y_test_data,0)
+```
+The cost is 3.859.
+
