@@ -9,7 +9,7 @@ output:
 
 ### Introduction
 
-This project implemented the regularized linear regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The datasets used in this project were originally from Coursera Machine Learning class and were converted to txt files.   
+This project implemented the regularized linear regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. In addition to the regularized linear regression algorithm, this project also discussed the bias-variance trade-off, and how to use learning curve as a tool to diagnose and determine the optimum regularization parameter $\lambda$. The datasets used in this project were originally from Coursera Machine Learning class and were converted to txt files.   
 
 #### Functions implemented in this markdown notebook
 * linearRegCostFunction - Function to compute the cost of the regularized linear regression
