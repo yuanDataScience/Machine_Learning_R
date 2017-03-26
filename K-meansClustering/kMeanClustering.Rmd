@@ -1,0 +1,256 @@
+---
+title: 'K-means clustering'
+author: 'Yuan Huang'
+output:
+  html_notebook: default
+  html_document: default
+  pdf_document: default
+---
+
+### Introduction
+
+This project implemented k-means clustering using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The examlle datasets used in this project were originally from Coursera Machine Learning class, except for the image file in section 1.4.   
+
+#### Functions implemented in this markdown notebook
+* runkMeans - Runs the K-means algorithm
+* findClosestCentroids - Find closest centroids given the feature vector of an example
+* computeCentroids - Compute centroids using the means of examples assigned to each centroid 
+* KMenasInitCentroids - Initialization for K-means centroids
+* getDistance - Find the euclidean distance between two feature vectors
+* plotDataPoints - visualize 2D data points, their cluster assignments and centroids
+* plotProgresskMeans - Plots each step of k-means as it proceeds
+
+First, load the R libraries needed for this project. 
+```{r}
+#load the library
+library(ggplot2)
+library("readr")
+library("png")
+```
+
+**1. K-means Clustering **                    
+
+This part of the project implemented the K-means algorithm and used it for image compression.
+
+**1.1. Implementating k-means **          
+The K-means algorithm is an unsupervised method to cluster similar data together. For a given dataset consisting of m examples, with each example represented by a n-dimensional feature vector $x^{(i)} \in R^n$, where n is the number of the features, we can group the examples into a few clusters.
+
+The procedure of k-means starts by first guessing the initial centers of the clusters, which is called centroids in the project, then assigning examples  to clusters based on their distances to the centers of the clusters. For each example, cluster having the shortest distance beteween its center and the example will be assigned to that example. By doing this, each example is assigned to a cluster. 
+
+The next step is to re-calculate the center of each cluster by averaging the feature vectors of all the examples assigned to each cluster. Such an example-ssignment and center-calculation procedure repeats until converged results are obtained. Noted that the converge depends on the intial settings of the centroids, and may not be the global optimum. Therefore, K-means algorithm usually runs a few times with different randomly initializations, and then chose the result with the lowest cost function value.
+
+**1.1.1 Finding Closest Centroids **          
+To assign an example to its closest center, we need to define the distance between two feature vectors. This project used the euclidean distance between two feature vectors $x^{(i)}$ and $x^{(j)}$ as $(x^{(i)}-x^{(j)})^T(x^{(i)}-x^{(j)})$. This was implemented in the function getDistance(), as shown in the following R chunk:
+```{r}
+getDistance<-function(X1,X2){
+  return(t(X1-X2)%*%(X1-X2))
+}
+```
+As mentioned in the previous section, one of the two steps of K-means is to assign examples to clusters. findClosestCentroids() function implemented this algorithm. this function takes the data matrix X and the locations of all the centroids, and returns a vector, idx, which contains the index (a value in {1,...K} where K is the total number of centroids) of the centroid assigned to each training example. The i-th element of idx corresponds to the index of the centroid assigned to the i-th example.
+
+The following R chunk implemented the funtion findClosestCentroids().
+```{r}
+findClosestCentroids<-function(X,centroids){
+  X<-as.matrix(X)
+  centroids<-as.matrix(centroids)
+  m<-dim(X)[1]
+  group_number<-dim(centroids)[1]
+  
+  k<-dim(centroids)[1]
+  idx<-rep(0,m)
+  for (i in 1:m){
+    idx[i] <- 1
+    distance<- getDistance(X[i,],centroids[1,])
+    for (j in 2:group_number){
+      tmp_dist<-getDistance(X[i,],centroids[j,])
+      if (tmp_dist<distance){
+        distance <- tmp_dist
+        idx[i] <-j
+      }
+    }
+    
+  }
+  return(idx)
+  
+}
+```
+Now, we test the findClosestCentroids() function using the dataset data2. We first initialize a centroid vector containing 3 centroids, then using these initial centroids, findClosestCentroids() function assigned clusters to examples in the dataset. The following R code showed the centroid indices for the first 6 examples in the dataset.
+
+```{r}
+data2<- read.csv("ex7data2X.txt",header=FALSE)
+
+d=3
+initial_centroids<-matrix(c(3,3,6,2,8,5),ncol=2, byrow=TRUE)
+
+idx<-findClosestCentroids(data2,initial_centroids)
+head(idx)
+```
+
+**1.1.2. Computing Centroid Means **                 
+
+After the example-assignment step, locations of the centroids are re-calculate by averaging the locations of the examples assigned to each centroid:
+
+$$\mu_k=\frac{1}{|C_k|}\sum_{i\in C_k}x^{(i)}  ~~~~~~~~~~~~~~~~Eq(1)  $$ 
+where $C_k$ is the set of examples assigned to centroid k, $|c_k|$ is the number of the examples assigned to centroid k, $x^{(i)}$ is the feature vector of example i assigned to centroid k, and $\mu_k$ is the feature vector corresponding to the location of centroid k. In the following R chunk, computeCentroids() funcation was implemented according to Eq(1). 
+
+```{r}
+computeCentroids<-function(X,idx,k){
+  X<-as.matrix(X)
+  m<-dim(X)[1]
+  n<-dim(X)[2]
+  
+  centroids<-matrix(0,nrow=k,ncol=n)
+  for (i in 1:k){
+    centroids[i,] <-apply(X[idx==i,],2,mean)
+  }
+  
+  return(centroids)
+  
+}
+
+```
+The following R code re-calculated the locations of the centroids after assigning examples to clusters using findClosestCentroids() function:
+
+```{r}
+centroids<-computeCentroids(data2,idx,3)
+centroids
+```
+** 1.2. K-means on example dataset**               
+
+This section combined computeCentroids() and findClosestCentroids() functions to implement K-means algorithm, and demonstrated the iterative steps of K-means algorithm. The runkMeansDemo() function in the following R chunk gives you a visualization that steps you through the progress of the algorithm at each iteration. You only need to press _enter_ key multiple times in the consol, and you will see how each step of the K-means algorithm changes the centroids and rcluster assignments.
+
+```{r}
+plotDataPoints<-function(X,idx,centroids){
+  X<-as.data.frame(X)
+  idx<-as.factor(idx)
+  cds<-as.data.frame(centroids)
+  style<-as.factor(sort.int(unique(idx)))
+  ggplot(data=X,aes(x=X[,1],y=X[,2],col=idx,shape=idx))+geom_point(size=1)+
+    geom_point(data=cds,aes(x=cds[,1],y=cds[,2],col=style,shape=style),size=3)
+}
+
+readKey <- function()
+{
+  cat ("Press [enter] to continue")
+  line <- readline()
+}
+
+runkMeansDemo<-function(X,initial_centroids,max_iters){
+  X<-as.matrix(X)
+  centroids<-as.matrix(initial_centroids)
+  cds<-as.data.frame(centroids)
+  k<-dim(initial_centroids)[1]
+  idx<-findClosestCentroids(X,initial_centroids)
+  
+  for (iter in 1:max_iters){
+    idx<-findClosestCentroids(X,centroids)
+    centroids<-computeCentroids(X,idx,k)
+    style<-as.factor(c(1,2,3))
+    
+      cat("This is the ",iter,"th iteration\n")
+      plot<-plotDataPoints(X,idx,centroids)
+      print(plot)
+      readKey()
+    
+    
+  }
+  
+}
+
+initial_centroids<-matrix(c(3,3,6,2,8,5),ncol=2, byrow=TRUE)
+runkMeansDemo(data2,initial_centroids,6)
+```
+
+
+**1.3. Random Initialization **                                     
+The K-means results are dependent on the initial assignment of centorids. In practice, a good strategy for initializing the centroids is to select random examples from the training set. This is implemented by randomly selecting k examples from the training dataset using the sample() function in R .  
+
+```{r}
+kMeansInitCentroids<-function(X,k){
+  set.seed(1)
+  m<-dim(X)[1]
+  permuIndex<-sample(1:m,size=m,replace=FALSE)
+  return(X[permuIndex[1:k],])
+}
+```
+
+Now, we can combine the kMeansInitCentroid(), findClosestCentroids() and computeCentroids() functions together to implement the runKMeans() function for the K-menas clustering. The fllowing R chunk impemented this function, and calculated the centroid locations and cluster assignments for data2 dataset. The implementation of this function is simliar to the previous runkMeansDemo() function, as shown in the following R code:
+```{r}
+runkMeans<-function(X,initial_centroids,max_iters){
+  X<-as.matrix(X)
+  centroids<-as.matrix(initial_centroids)
+  cds<-as.data.frame(centroids)
+  k<-dim(initial_centroids)[1]
+  idx<-findClosestCentroids(X,initial_centroids)
+  
+  for (iter in 1:max_iters){
+    idx<-findClosestCentroids(X,centroids)
+    centroids<-computeCentroids(X,idx,k)
+    style<-as.factor(c(1,2,3))
+    
+  }
+  
+   return(list(centroids=centroids,idx=idx))  
+}
+
+initial_c<-kMeansInitCentroids(data2,3)
+runkMeans(data2,initial_c,10)
+```
+
+**1.4. Image Compression with K-means **                  
+K-means cluster can be used for image compression. The basic idea is to cluster the pixels according to their color coding, and then for each pixel, we use the color coding of its centroid to represent that pixel. The following R chunk is the code for a simple image compression using K-means algorithm. The png image file was first read using the readPNG() function of R png package, and formated to a matrix with 3 columns, each representing the red, green and blue intensity values (RGB encoding), respectively. The original RGB encoding contains thousands of combination of RGB intensities. 
+
+In the R code, we clustered pixels in this image using 8 centroids. We first intialized 8 centroids by randomly selecting 8 pixels from the image using init_centroids() funtion. and then used runkMeans() function to cluster the pixels. In the recover_compressed_data() function, we defined the RGB econding of each pixel by its assigned centroid's color encoding, and then reformat the data matrix to the 3-d array, png format. The orignial and compressed images were then visualized using the rasterImage() function.
+
+In fact, we can calculate how much storage space we saved by K-means algorithm: in the original RGB encoding system, each pixel requires 24 bits (one byte (8 bits) for each of the red, green and blue encoding), leading to $128\times 128 \times 24 = 393,216$ bits. The compressed representation requires 24 bits for each of the 8 centroid colors. However, it only needs 3 bits to store the centroid index  of each pixel, which is an integer between 1 and 8. Therefore, the new compressed representation only needs $8\times 24 + 128\times 128 \times 3 = 49,344$ bits, corresponding to a compression in space by a factor of 8.
+
+![Original picture of a penguin](IMG_0327.png)
+
+
+```{r}
+bird<-readPNG("IMG_0327.png")[,,1:3]
+bird_matrix<-matrix(bird,nrow=dim(bird)[1]*dim(bird)[2],3)
+
+init_centroids<-kMeansInitCentroids(bird_matrix,8)
+bird_compressed<-runkMeans(bird_matrix,init_centroids,10)
+
+recover_compressed_data<-function(centroid,idx,imageSize){
+  image_leng<-length(idx)
+  image_matrix<-matrix(0,nrow=image_leng,ncol=3)
+  
+  image_matrix[1:image_leng,]<-centroid[idx]
+  return(array(image_matrix,dim=c(imageSize[1],imageSize[2],3)))
+  
+}
+
+comp_png<-recover_compressed_data(bird_compressed$centroids,bird_compressed$idx,c(128,128))
+plot(c(100, 230), c(300, 360), type = "n", xlab = "", ylab = "")
+rasterImage(comp_png, 100, 300, 150, 350)
+rasterImage(bird,175,300,225,350)
+```
+In the figure, the left image is the compressed one, and the right image is the original one. We can see that some details of the original image were lost in the compressed image.               
+
+Now, we can try more centroids, for example 16 to compress the image, as shown by the following R code
+```{r}
+init_centroids<-kMeansInitCentroids(bird_matrix,16)
+bird_compressed<-runkMeans(bird_matrix,init_centroids,10)
+
+comp_png<-recover_compressed_data(bird_compressed$centroids,bird_compressed$idx,c(128,128))
+plot(c(100, 230), c(300, 360), type = "n", xlab = "", ylab = "")
+rasterImage(comp_png, 100, 300, 150, 350)
+rasterImage(bird,175,300,225,350)
+```
+
+From this figure, with more centroids, the compressed image maintained more details of the original image. The cost for the improved quality of the compressed image is the increased numberof bits required to store the image. Now, the bits required to store this compressed image is  $16\times 24 + 128\times 128 \times 4 = 65,920$ bits  
+
+
+
+
+
+
+
+
+
+
+
+
