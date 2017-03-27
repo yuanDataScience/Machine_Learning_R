@@ -129,7 +129,7 @@ Same to the Neural Network Learning and Softmax algorithms, a function was imple
 
 The basic idea of the numeric gradient calculation is to directly introduce a small disturbance to the input vector. Each time, only one element in the vector is changed while others are held constant, and then evaluate the ratio of the corresponding cost function change to the value change of that element. Repeat this procedure for all the elements in the vector, and store the results in a vector. We can then compare this vector to the vector returened by cofiGradFunc() element-wise to see if they are consistent.
 
-In the follwoing R code, function computeNumericGradient was used to calculate the gradient of an input vector $\theta$ using the cost function. For each element $\theta_i$ in the input vector, a small change of 2e-4 was introduced to that element while holding the other elements constant, and computed the corresponding $\frac{dJ(\theta)}{d \theta_i}$. These values were stored in a vetor and returned as $\frac{\partial J(\theta)}{\partial \theta$.
+In the follwoing R code, function computeNumericGradient was used to calculate the gradient of an input vector $\theta$ using the cost function. For each element $\theta_i$ in the input vector, a small change of 2e-4 was introduced to that element while holding the other elements constant, and computed the corresponding $\frac{dJ(\theta)}{d \theta_i}$. These values were stored in a vetor and returned as $\frac{\partial J(\theta)}{\partial \theta}$.
                  
 ```{r}
 computeNumericGradient<-function(theta,FUN=cofiCostFunc,...){
@@ -319,7 +319,7 @@ X_pred<-matrix(theta[1:X_length],nrow=num_movies)
 theta_pred<-matrix(theta[theta_start:params_length],nrow=num_users)
 ```
 
-Now we can make the recommendations using the trained model. The prediction was simply made by $X^\theta^T$ where elements in X and $\theta$ matrices were learned by Rcgmin function to minimize the cost funtion.
+Now we can make the recommendations using the trained model. The prediction was simply made by $X\theta^T$ where elements in X and $\theta$ matrices were learned by Rcgmin function to minimize the cost funtion.
 ```{r}
 p<-X_pred%*%t(theta_pred)
 my_predictions<-p[,1]+Y_mean
