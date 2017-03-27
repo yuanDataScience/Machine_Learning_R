@@ -1,0 +1,345 @@
+---
+title: 'Recommendation Systems'
+author: 'Yuan Huang'
+output:
+  html_notebook: default
+  html_document: default
+  pdf_document: default
+---
+
+### Introduction
+
+This project implemented the collaborative filtering algorithm for a recommendation systems using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The datasets used in this project were originally from Coursera Machine Learning class, and the data can also be downloaded from https://grouplens.org/datasets/movielens/100k/   
+
+#### Functions implemented in this markdown notebook
+* checkCostFunction - gradient checking for collaborative filtering
+* computeNumericalGradient - Numerically compute gradients
+* loadMovieList - Loads the list of movies into a vector
+* normalizeRatings - Mean normalization for collaborative filtering
+* cofiCostFunc - Cost function for collaborative filtering
+* cofiGradFunc - Gradient function for collaborative filtering
+
+First, load the R libraries needed for this project. The Rcgmin was used to learn the optimized parameters for collaborative filtering. 
+```{r}
+#load the library
+library("ggplot2")
+library("Rcgmin")
+
+```
+
+**1. Recommendation Systems **              
+This project implemented the collaborative filtering learning algorithm and apply it to a dataset of movie ratings. This dataset contains the rating of about 1700 movies rated by about 1000 people. The rating is on a scale of 1 to 5. Let's load the datasets and explain the structures of the datasets.
+```{r}
+R_movies<-read.csv("moviesR.txt",header=FALSE,stringsAsFactors = FALSE)
+Y_movies<-read.csv("moviesY.txt",header=FALSE,stringsAsFactors = FALSE)
+X_movies<-read.csv("movieParamsX.txt",header=FALSE,stringsAsFactors = FALSE)
+Theta_movies<-read.csv("movieParamsTheta.txt",header=FALSE,stringsAsFactors = FALSE)
+
+R_movies<-as.matrix(R_movies)
+Y_movies<-as.matrix(Y_movies)
+X_movies<-as.matrix(X_movies)
+Theta_movies<-as.matrix(Theta_movies)
+```
+
+**1.1. Movie ratings datasets **     
+
+We have the following 4 data matrices:           
+(a). R_movies.                          
+A 1682 by 943 matrix, corresponding to 1682 movies rated by 943 users. Each element in this matrix is either 0 or 1. Value $R_{i,j}=1$ if the j-th user rated the i-th movie, or 0 otherwise. In the following discussion, I will use R to represent R_movies matrix.
+
+(b). X_movies.          
+A 1682 by 10 matrix, which is the movie feature matrix. The i-th row of X_movie corresponds to the feature vector $x^{(i)} \in R^{10}$ for the i-th movie. Each movie has 10 features. Each element in $x^{(i)}$ characterizes a specific property of the movie. For example, you can consider the k-th element of the feature vector $x_k^{(i)}$ characterizes how much the romance content this movie has, and the f-th element $x_f^{(i)}$ characterizes if there are nonstoop car chases in the movie etc. In the following discussion, I will use X to represent X_movies matrix.
+
+(c). Theta_movies.          
+A 943 by 10 matrix, which is the user parameter matrix. The j-th row of Theta, $\theta^{(j)}\in R^{10}$ is a 10 dimensional vector that corresponds to the user parameter vector for the j-th user. Each element in $\theta^{(j)}$ corresponds to the preference that user j has to a specific property of the movie. For example, you can consider the k-th element of the feature vector $\theta_k^{(i)}$ characterizes how much user j prefers (or hate) romance movie, and the f-th element $\theta_f^{(i)}$ characterizes how much user j prefers nonstoop car chases in the movie.In the following discussion, I will use $\theta$ to represent Theta_movies matrix. 
+
+(d). Y_movies.          
+A 1682 by 943 matrix, corresponding to 1682 movies rated by 943 users. Each element in this matrix is an integer between 0 and 5. Value $Y_{i,j}\in [1,5]$ if the j-th user rated the i-th movie, or 0 otherwise. In the following discussion, I will use Y to represent Y_movies matrix. 
+
+In fact, if we have all the data in items (b) and (c) available with correct values, we can predict each element in Y matrix by $X\theta^T$. This is easy to understand: If user j likes romance movie, and movie i happens to be a romance movie, then $X_k^{(i)}\theta_k^{(j)}$ will be large. Furthermore, if user j likes all the properties that movie i has large values in its corresponding feature vector, and hates all the properties that the movie i has small values in its feature vector, then the inner procudt of $X^{(i)}\theta^{(j)}$ will generate a high rate, which corresponds to element $Y_{ij}$ in Y matrix.   
+
+**1.2 Cost and Gradient Functions **                  
+Simply speaking, the strategy of this algorithm is to use the learned, optimum X and $\theta$ matrices to predict the rates in Y using $X\theta^T$. Therefore, the cost function is the sum of the squares of all the elements in the matrix $X\theta^T-Y$. However, remember that some movies are not rated by some users, so some of the elements in Y matrix are un-rated values. Therefore, differences between the predicted values in $X\theta^T$ and the corresponding elements in Y should not be counted in the cost for these un-rated elements. By multiply $X\theta^T-Y$ and R matrix element-wise, the un-rated elements in $X\theta^T-Y$ are set to 0, and will not contribute to the cost. Therefore, we obtain the regularized cost function in matrix format as:
+$$\frac{1}{2}\sum\left[(X\theta^T-Y)\cdot (X\theta^T-Y)\cdot R\right] +\lambda\sum(\theta\cdot \theta) +\lambda\sum(X\cdot X) ~~~~~~~~~~~~~~Eq(1)$$
+Where $\sum$ refers to the sum of all the element in the corresponding matrix, and $\cdot$ means element-wise matrix multiplication.
+
+Apply the derivative of Eq(1) versus $x^{(i)}$ or $\theta^{(i)}$, and vectorize the operation, we obtain the gradient function for X in matrix format as:
+$$\frac{\partial J(\theta)}{\partial X}=\left[(X\theta^T-Y)\cdot R\right] \theta + \lambda X  ~~~~~~~~~~~~Eq(2)$$
+The gradient for $\theta$ is:
+$$\frac{\partial J(\theta)}{\partial \theta}= \left[(X\theta^T-Y)\cdot R\right]^T X +\lambda \theta ~~~~~~~Eq(3)  $$
+Eqs(1-3) were used in the following R chunk to implement the cost and gradient functions:
+```{r}
+cofiCostFunc<-function(params,R,Y,num_movies,num_users,num_features,lambda){
+  R<-as.matrix(R)
+  Y<-as.matrix(Y)
+  
+  xlength<-num_movies*num_features
+  theta_start<-xlength+1
+  totalLength<-length(params)
+  
+  X<-matrix(params[1:xlength],nrow=num_movies)
+  theta<-matrix(params[theta_start:totalLength],nrow=num_users)
+  cost <- 1/2*(sum((X%*%t(theta)-Y)*(X%*%t(theta)-Y)*R)+lambda*sum(theta*theta)+lambda*sum(X*X))
+  return(cost[1])
+  
+}
+
+cofiGradFunc<-function(params,R,Y,num_movies,num_users,num_features,lambda){
+  R<-as.matrix(R)
+  Y<-as.matrix(Y)
+  
+  xlength<-num_movies*num_features
+  theta_start<-xlength+1
+  totalLength<-length(params)
+  
+  X<-matrix(params[1:xlength],nrow=num_movies)
+  theta<-matrix(params[theta_start:totalLength],nrow=num_users)
+  
+  grad_X<-((X%*%t(theta)-Y)*R)%*%theta+lambda*X
+  grad_theta<-t((X%*%t(theta)-Y)*R)%*%X+lambda*theta
+  c(as.vector(grad_X),as.vector(grad_theta))
+}
+
+```
+Now, we can test our cost function. First, let's sample a small subset of data from the loaded datasets and test the non-regularized cost function by setting $lambda=0$:
+```{r}
+# to establish a small data set for testing
+num_users<-4
+num_movies<-5
+num_features<-3
+
+R_test<-R_movies[1:num_movies,1:num_users]
+Y_test<-Y_movies[1:num_movies,1:num_users]
+X_test<-X_movies[1:num_movies,1:num_features]
+Theta_test<-Theta_movies[1:num_users,1:num_features]
+
+test_params<-c(as.vector(X_test),as.vector(Theta_test))
+cofiCostFunc(test_params,R_test,Y_test,num_movies,num_users,num_features,0)
+```
+A cost of about 22.22 was obtained.
+
+Now let's test the cost function with a $\lambda$ value of 1.5:
+```{r}
+cofiCostFunc(test_params,R_test,Y_test,num_movies,num_users,num_features,1.5)
+```
+A cost of about 31.34 was obtained when $\lambda=1.5$.
+
+**1.3 Check Gradient Function Using Numerical Gradient Calculation **                    
+Same to the Neural Network Learning and Softmax algorithms, a function was implemented to compute the gradient numerically. Given an input vector, this function calculated the gradient of the cost function versus the input vector numerically. The results were compared to check if the gradient fucntion implemented to the results obtained by cofiGradFunc() function implemented using Eqs(2) and (3) to check if cofiGradFunc() can correctly compute the gradient. 
+
+The basic idea of the numeric gradient calculation is to directly introduce a small disturbance to the input vector. Each time, only one element in the vector is changed while others are held constant, and then evaluate the ratio of the corresponding cost function change to the value change of that element. Repeat this procedure for all the elements in the vector, and store the results in a vector. We can then compare this vector to the vector returened by cofiGradFunc() element-wise to see if they are consistent.
+
+In the follwoing R code, function computeNumericGradient was used to calculate the gradient of an input vector $\theta$ using the cost function. For each element $\theta_i$ in the input vector, a small change of 2e-4 was introduced to that element while holding the other elements constant, and computed the corresponding $\frac{dJ(\theta)}{d \theta_i}$. These values were stored in a vetor and returned as $\frac{\partial J(\theta)}{\partial \theta$.
+                 
+```{r}
+computeNumericGradient<-function(theta,FUN=cofiCostFunc,...){
+  gradSize<-length(theta)
+  perturb<-rep(0,gradSize)
+  numgrad<-rep(0,gradSize)
+  
+  e<-1e-4
+  
+  for (i in seq_along(theta)){
+    
+    perturb[i]=e
+    
+    loss1<-FUN(theta+perturb,...)
+    loss2<-FUN(theta-perturb,...)
+    numgrad[i]<-(loss1-loss2)/(2*e)
+    
+    perturb[i]<-0
+  }
+  
+  return(numgrad)
+}
+```
+
+In the following R code, a function, checkCostFunction() was implemented to compare the gradient results calculated by computeNumericGradient() and cofiGradFunc(). This function generated simulated datasets for X_movies, Y_movies, theta_movies and R_movies matrics that include 4 movies and 5 users with 3 features using uniform distribution, and then tested the gradient results calcuated by the two gradient functions.
+```{r}
+checkCostFunction<-function(lambda=0){
+  #generate the movies and users' features
+  X_t<-matrix(runif(12),nrow=4,ncol=3)
+  Theta_t<-matrix(runif(15),nrow=5,ncol=3)
+  
+  #generate the rating according to the features
+  Y<-X_t%*%t(Theta_t)
+  y_row<-dim(Y)[1]
+  y_col<-dim(Y)[2]
+  y_len<-length(Y)
+  
+  #randomly deletes some of the rating values to generate incomplete rating matrix
+  random_y_matrix<-matrix(runif(y_len),nrow=y_row,ncol=y_col)
+  Y[random_y_matrix>0.5]=0
+  R<-matrix(0,nrow=y_row,ncol=y_col)
+  R[Y!=0]=1
+ 
+  #using randomly generated initial features, and the incomplete rating matrix 
+  #to regerate all the features and rating matrix
+  X<-matrix(runif(12),nrow=4,ncol=3)
+  Theta<-matrix(runif(15),nrow=5,ncol=3)
+  
+  num_movies<-dim(Y)[1]
+  num_users<-dim(Y)[2]
+  num_features<-dim(X)[2]
+  
+  params<-c(as.vector(X),as.vector(Theta))
+  
+  num_grad<-computeNumericGradient(params,FUN=cofiCostFunc,R=R,Y=Y,num_movies=num_movies,num_users=num_users,num_features=num_features,lambda=lambda)
+  cal_grad<-cofiGradFunc(params,R,Y,num_movies,num_users,num_features,lambda)
+  
+  diff_vec<-num_grad-cal_grad
+  total_vec<-num_grad+cal_grad
+  
+  diff<-(t(diff_vec)%*%diff_vec)/(t(total_vec)%*%total_vec)
+  
+ 
+  
+  rs_df<-as.data.frame(cbind(num_grad,cal_grad))
+  names(rs_df)<-c("num_grad","cal_grad")
+  
+  print(rs_df)
+  cat("\nIf your backpropagation implementation is correct, then \n","the relative difference will be small (less than 1e-9). \n",
+      "\nRelative Difference: \n", diff,"\n")
+  
+}
+
+
+```
+We first compared the resutls of the gradient functions without regularization by setting $lambda=0$:
+```{r}
+checkCostFunction()
+```
+The difference between the gradient results calculated by the two methods was very small. Then we tested the case where $lambda=1.5$: 
+
+```{r}
+checkCostFunction(1.5)
+```
+Again, difference in the results obtained by the two methods was very small, and we are confident about the gradient values calculated by cofiGradFunc()
+
+**1.5 Learning Movie Recommendations **                 
+After implementing the collaborative filtering cost and gradient functions, We can train the model to make movie recommendations. First, we loaded the movie list, which contained 1682 movies.  
+```{r}
+getMovieList<-function(){
+  movies<-readLines("movie_ids.txt")
+  movies<-as.list(movies)
+  movie_list<-sapply(movies,function(x) {
+    x<-sub("^\\d+","",x)
+    name<-gsub("^\\s+|\\s+$","",x)
+  })
+  movie_list
+  
+}
+
+movie_list<-getMovieList()
+```
+Next, we rated some of the movies in the movie list, so the algorithm can use these rates to find our perferences for movies, and predict which movies we would like for recommendations.
+
+```{r}
+#build the myrating list
+my_ratings<-rep(0,length(movie_list))
+
+#test and demonstrate the my_rating list
+my_ratings[1] = 4
+my_ratings[98] = 2
+my_ratings[7] = 3
+my_ratings[12]= 5
+my_ratings[54] = 4
+my_ratings[64]= 5
+my_ratings[66]= 3
+my_ratings[69] = 5
+my_ratings[183] = 4
+my_ratings[226] = 5
+my_ratings[355]= 5
+
+for(i in seq_along(my_ratings)){
+  if (my_ratings[i] > 0){
+    cat("rating for ",movie_list[i],"is ",my_ratings[i],"\n")
+  }
+}
+
+```
+
+We loaded the R_movies and Y_movies datasets, and add our rates to these datasets.
+```{r}
+R_movies<-read.csv("moviesR.txt",header=FALSE)
+Y_movies<-read.csv("moviesY.txt",header=FALSE)
+
+#add my_rating to Y_movies and R_movies
+Y_movies<-cbind(my_ratings,Y_movies)
+my_R_vector<-my_ratings
+my_R_vector[my_R_vector!=0]=1
+R_movies<-cbind(my_R_vector,R_movies)
+```
+Before starting to train the model, we normalized the Y_movies data, so that users who did not rate some movies will be given the average rates of those movies.
+```{r}
+normalizeRatings<-function(Y,R){
+  #get rated matrix
+  Y_rated<-Y*R
+  
+  #find the average rate for each movie, which is each row in the matrix
+  #only the rated movies are counted
+  Y_mean<-apply(Y_rated,1,sum)/apply(R,1,sum)
+  
+  #center the ratings
+  Y_norm<-(Y-Y_mean)*R
+  
+  list(Y_mean=Y_mean,Y_norm=Y_norm)
+  
+  
+}
+
+normal_Rating<-normalizeRatings(Y_movies,R_movies)
+Y_mean<-normal_Rating$Y_mean
+Y_movies<-normal_Rating$Y_norm
+```
+
+We initialized the X and $\theta$ matrices using random numbers, and set $\lambda=10$:
+```{r}
+num_movies<-dim(Y_movies)[1]
+num_users<-dim(Y_movies)[2]
+num_features<-10
+
+X<-matrix(runif(num_movies*num_features),nrow=num_movies)
+init_theta<-matrix(runif(num_users*num_features),nrow=num_users)
+init_params<-c(as.vector(X),as.vector(init_theta))
+
+lambda<-10
+```
+
+Next, we trained the model to learn the X and $\theta$ parameters by Rcgmin function, and reformatted the learned parameter vector back to the dimensions of X and $\theta$ matrices:
+```{r}
+theta<-Rcgmin(par=init_params,cofiCostFunc,cofiGradFunc,R=R_movies,
+              Y=Y_movies,num_movies=num_movies,num_users=num_users,num_features=num_features,lambda=lambda)$par
+
+X_length<-num_movies*num_features
+theta_start<-X_length+1
+params_length<-length(theta)
+
+X_pred<-matrix(theta[1:X_length],nrow=num_movies)
+theta_pred<-matrix(theta[theta_start:params_length],nrow=num_users)
+```
+
+Now we can make the recommendations using the trained model. The prediction was simply made by $X^\theta^T$ where elements in X and $\theta$ matrices were learned by Rcgmin function to minimize the cost funtion.
+```{r}
+p<-X_pred%*%t(theta_pred)
+my_predictions<-p[,1]+Y_mean
+
+sort_result<-sort.int(my_predictions,decreasing = TRUE,index.return = TRUE)
+top_indices<-sort_result[[2]][1:15]
+top_scores<-round(sort_result[[1]][1:15],1)
+movie_list<-getMovieList()
+top_movies<-movie_list[top_indices]
+
+for(i in 1:15){
+   
+  cat("Predicting rating ",top_scores[i],"for movie ", top_movies[i],"\n")
+  }
+
+for(i in seq_along(my_ratings)){
+  if (my_ratings[i]>0){
+    cat("Rated ",my_ratings[i],"for ",movie_list[i],"\n")
+  }
+}
+
+```
+Here we have the top list of the recommendations by the trained model!
