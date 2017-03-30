@@ -47,8 +47,8 @@ The data originally generated is plotted in the left side of the figure. It is a
 
 This is the basic idea of PCA: by projecting the original data onto a set of principal components, we present the data in a much lower dimensional space. You can consider principal components as a set of normalized vectors. These vectors are chosen so that when projecting the original data onto these vectors, the relative distances between the objects are best reserved. More specifically, for each principal components, we want the projected values to have the maximum variance. In addition, principal components are ordered according to the variances of their projected data. Variance of the projected data for the first principal component (PC1) is the largerest among all the principal components, and the variance of the projected data for PC2 is the second largest, and so on.
 
-**1.2. mathematics of PCA **
-**1.2.1. Definitions of symbols and matrices **                 
+**1.2. mathematics of PCA **                 
+**1.2.1. Definitions of symbols and matrices **                                  
 PCA can be formulated as a mathematical maximization problem with constraints. In this section, I will define the symbols and terminologies used in the following derivation:                  
 (a). data matrix X                      
 Data matrix is a m by n matrix, where m is the nunmber of observations and n is the number of the features. The i-th row of X matrix, $X^{(i)}\in R^{(n)}$ is the feature vector corresponding to the i-th observation.
