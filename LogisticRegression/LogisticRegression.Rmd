@@ -1,5 +1,6 @@
 ---
 title: 'Multi-class Classification'
+author: Yuan Huang
 output:
   html_notebook: default
   html_document: default
@@ -21,6 +22,7 @@ Before we implement the functions, we first load the R libraries for this projec
 #load the library
 library(ggplot2)
 library(Rcgmin)
+library(ucminf)
 ```
 
 **1. Ligistic Regression **          

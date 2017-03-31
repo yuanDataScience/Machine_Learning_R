@@ -1,5 +1,6 @@
 ---
 title: 'Neural Networks Learning'
+author: Yuan Huang
 output:
   html_notebook: default
   html_document: default

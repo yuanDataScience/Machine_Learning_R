@@ -1,5 +1,6 @@
 ---
 title: "Linear Regression"
+author: Yuan Huang
 output:
   html_notebook: default
   html_document: default
@@ -10,7 +11,6 @@ output:
 This project implements the linear regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The data used in this project are exdata1.txt and exdata2.txt. These txt files are included in the folder.  
 
 #### Function list: Functions implemented in this markdown notebook
-* warmUpExercise - Function to generate a 5 by 5 identity matrix
 * computeCost - Function to compute the cost of linear regression. It can be used for both univariate and multiple variables
 * gradient Descent - Function to run gradient descent.It can be used for both univariate and multiple variables 
 * featureNormalize - Function to normalize features
