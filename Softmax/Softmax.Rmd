@@ -348,4 +348,4 @@ Results showed that softmax regression predicted 98.78% of the training examples
 predicts<-predict(test_X,thetas,10)
 mean(predicts==test_Y)*100
 ```
-The accuracy for the test dataset using the established softmax regression model was 89.1%.
+The accuracy for the test dataset using the established softmax regression model was 88.4%.
