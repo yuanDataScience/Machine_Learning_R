@@ -1,5 +1,5 @@
 ---
-title: 'Multi-class Classification'
+title: 'Logistic Regression'
 author: Yuan Huang
 output:
   html_notebook: default
@@ -9,22 +9,26 @@ output:
 
 ### Introduction
 
-This project implements the one-vs-all logistic regression and neutral networks using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notebook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The data used in this project are ex3data1X.txt, ex3dataY.txt, ex3dataEmail.txt, ex3dataTheta1.txt and ex3dataTheta2.txt. These txt files are included in the folder.  
+This project implements the logistic regression using R. This markdown file read the data files and organized functions defined in the function list. The corresponding notbook and the markdown files also explained the derivation of the basic equations used for the implementation of the algorithms. The data used in this project are ex2data1.txt and ex2data2.txt. These txt files are included in the folder.  
 
 #### Function list: Functions implemented in this markdown notebook
+* mapFeature - Function to generate polynomial features
+* plotDecisionBoundary - Function to plot classifier's decision boundary
+* plotData - Function to plot 2D classification data 
 * sigmoid - Sigmoid Function 
-* predict - One-vs-all Logistic Regression Prediction Function
-* fR - Regularized Logistic Regression cost function
-* gR - Regularized Logistic Regression gradient function
+* predict - Logistic Regression Prediction Function
+* fR - Logistic Regression cost function without regulation
+* gR - Logistic Regression graident function without regulation
+* fR_reg - Regularized Logistic Regression cost function
+* gR_reg - Regularized Logistic Regression gradient function
 
 Before we implement the functions, we first load the R libraries for this project.
 ```{r}
 #load the library
-library(ggplot2)
-library(Rcgmin)
+library(tidyverse)
+library(optimx)
 library(ucminf)
 ```
-
 **1. Ligistic Regression **          
 In this section, we will build a logistic regression model to predict whether a student gets admitted into a university based on their results on two exams. The training set consists of the historical data from previous applicants. For each training example, you have the applicant's scores on the two exams, and the admissions decision. 
 The task is to build a classification model that estimates an applicant's probability of admission based on the scores from those two exams. Now, let's read the data.
