@@ -34,16 +34,30 @@ In the Multi-class classification project, we implemented feedforward propagatio
 **1.1 Visualizing the data **                                 
 The data used in this project contains 5000 training examples of hand-written digits. Example images of these digits are shown below:     
 
-![sample digit images](ex3.jpg)
+```{r}
+image_X<-as.matrix(read.csv('ex4data1X.txt',header=FALSE))
+sample_index<-sample(1:nrow(image_X),50)
+sample_image<-as.data.frame(t(image_X[sample_index,]))
+var_matrix<-lapply(1:50,function(x) matrix(sample_image[[x]],nrow=20, byrow=TRUE))
 
-Now let's read the data:
+par(mfrow=c(5,10),mar=c(.1,.1,.1,.1))
+
+for (i in 1:50){
+  for (j in 1:20){
+    var_matrix[[i]][j,]<-rev(var_matrix[[i]][j,])
+  }
+  image(var_matrix[[i]],col=grey.colors(225),axes=F)
+}
+
+```
+
+Now let's read the other data:
 ```{r}
 # read the trained weights for the middle and the outer layers
 theta1<-as.matrix(read.csv("ex4dataTheta1.txt",header=FALSE))
 theta2<-as.matrix(read.csv("ex4dataTheta2.txt",header=FALSE))
 nnparameter<-c(as.vector(theta1),as.vector(theta2))
 
-image_X<-as.matrix(read.csv('ex4data1X.txt',header=FALSE))
 targety<-read.csv('ex4dataY.txt',header=FALSE)
 
 cat("the dimension of image_X is: ",dim(image_X),"\n")
@@ -336,7 +350,7 @@ In the following R code, the labels of the training dataset was predicted by the
 ```{r}
 pred<-predict(result_theta1,result_theta2,image_X)
 accuracy<- mean(pred==targety)*100
-cat("the accuracy by neron net work is ",accuracy,'\n')
+cat("the accuracy by neural net work is ",accuracy,'\n')
 ```
 Results showed that the nueral network can predict 99.5% of the training example correctly.
 
