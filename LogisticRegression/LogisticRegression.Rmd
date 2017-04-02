@@ -125,8 +125,8 @@ The result should be about 0.693.
 
 We just tested the cost funtion using the initial theta, $\theta0$, which has all its elements as 0. We still need to find the optimum $\theta$ that can give us the minimum cost given the fixed dataset. Here in this implementation, the optimum theta value was obtained using the ucminf function of the ucminf package. This function requires two inputs:
 
-*The initial values of the parameters we are trying to optimize ($\theta0$).
-*The cost and gradient functions, and the dataset including the design matrix and the target variable vector.
+* The initial values of the parameters we are trying to optimize ($\theta0$).                 
+* The cost and gradient functions, and the dataset including the design matrix and the target variable vector.
 
 The R code for opimizing the $\theta$ value to minimize cost using the ucminf function is shown in the following R chunk. The corresponding cost obtained at the optimum $\theta$ value was printed out.
 ```{r}
