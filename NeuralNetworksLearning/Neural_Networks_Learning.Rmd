@@ -36,18 +36,22 @@ The data used in this project contains 5000 training examples of hand-written di
 
 ```{r}
 image_X<-as.matrix(read.csv('ex4data1X.txt',header=FALSE))
-sample_index<-sample(1:nrow(image_X),50)
-sample_image<-as.data.frame(t(image_X[sample_index,]))
-var_matrix<-lapply(1:50,function(x) matrix(sample_image[[x]],nrow=20, byrow=TRUE))
+visualizeDigits<-function(image_X){
+  sample_index<-sample(1:nrow(image_X),50)
+  sample_image<-as.data.frame(t(image_X[sample_index,]))
+  var_matrix<-lapply(1:50,function(x) matrix(sample_image[[x]],nrow=20, byrow=TRUE))
 
-par(mfrow=c(5,10),mar=c(.1,.1,.1,.1))
+  par(mfrow=c(5,10),mar=c(.1,.1,.1,.1))
 
-for (i in 1:50){
-  for (j in 1:20){
-    var_matrix[[i]][j,]<-rev(var_matrix[[i]][j,])
+  for (i in 1:50){
+    for (j in 1:20){
+      var_matrix[[i]][j,]<-rev(var_matrix[[i]][j,])
+    }
+    image(var_matrix[[i]],col=grey.colors(225),axes=F)
   }
-  image(var_matrix[[i]],col=grey.colors(225),axes=F)
 }
+
+visualizeDigits(image_X)
 
 ```
 
@@ -329,7 +333,11 @@ initial_theta1<-randInitializeWeights(nn_input_layer_size,nn_hidden_layer_size)
 initial_theta2<-randInitializeWeights(nn_hidden_layer_size,nn_number_labels)
 initial_thetas<-c(as.vector(initial_theta1),as.vector(initial_theta2))
 
-result_thetas<-Rcgmin(par=initial_thetas,nnCostFunction,nnGradient,input_layer_size=400,hidden_layer_size=25,number_labels=10,X=image_X,y=targety,lambda=1)$par
+train_index<-sample(1:nn_observation_number,nn_observation_number*0.8)
+train_image_X<-image_X[train_index,]
+train_targety<-matrix(targety[train_index,],ncol=1)
+
+result_thetas<-Rcgmin(par=initial_thetas,nnCostFunction,nnGradient,input_layer_size=400,hidden_layer_size=25,number_labels=10,X=train_image_X,y=train_targety,lambda=1)$par
 
 theta1_length<-(nn_input_layer_size+1)*nn_hidden_layer_size
 theta2_start<-theta1_length+1
@@ -348,11 +356,21 @@ predict<-function(t1,t2,X){
 ```
 In the following R code, the labels of the training dataset was predicted by the predict function, and compared to the corresponding labels in the training dataset. The accuracy was calculated. 
 ```{r}
-pred<-predict(result_theta1,result_theta2,image_X)
-accuracy<- mean(pred==targety)*100
-cat("the accuracy by neural net work is ",accuracy,'\n')
+pred<-predict(result_theta1,result_theta2,train_image_X)
+accuracy<- mean(pred==train_targety)*100
+cat("the accuracy of training dataset by neural net work is ",accuracy,'\n')
 ```
-Results showed that the nueral network can predict 99.5% of the training example correctly.
+Results showed that the nueral network can predict > 99% of the training example correctly.
+
+The accuracy of the test dataset was also evaluated in the following R chunk:
+```{r}
+test_image_X<-image_X[-train_index,]
+test_targety<-matrix(targety[-train_index,],ncol=1)
+pred<-predict(result_theta1,result_theta2,test_image_X)
+accuracy<- mean(pred==test_targety)*100
+cat("the accuracy of test dataset by neural net work is ",accuracy,'\n')
+```
+
 
 
 
